@@ -1,0 +1,3604 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <title>TAKADORI — The Living World</title>
+
+  <!-- Fonts: Cinzel & Cormorant Garamond for cinematic serif display, Inter for clean UI, Noto Serif JP for calligraphy -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&family=Noto+Serif+JP:wght@400;600;700;900&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS for responsive layout utilities -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Three.js r128 & GSAP 3.12 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+  <style>
+    /* =========================================================================
+       DESIGN TOKENS & BASE STYLING — CINEMATIC OBSIDIAN & CRIMSON PALETTE
+       ========================================================================= */
+    :root {
+      --obsidian: #060205;
+      --obsidian-panel: rgba(11, 4, 8, 0.72);
+      --crimson-core: #e5142f;
+      --crimson-bright: #ff2a46;
+      --crimson-deep: #7a0417;
+      --crimson-glow: rgba(235, 22, 54, 0.45);
+      --silver-text: #f3eff2;
+      --muted-text: rgba(226, 214, 220, 0.64);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      min-height: 100%;
+      background-color: var(--obsidian);
+      color: var(--silver-text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      overflow-x: hidden;
+      overscroll-behavior: none;
+    }
+
+    /* Full-bleed fixed 3D WebGL viewport */
+    #world-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      z-index: 0;
+      touch-action: pan-y;
+    }
+
+    /* Subtle cinematic vignette & film grain overlay for depth cohesion */
+    .cinema-vignette {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2;
+      background:
+        radial-gradient(ellipse 85% 75% at 45% 48%, rgba(6, 2, 5, 0) 38%, rgba(4, 1, 3, 0.68) 100%),
+        linear-gradient(180deg, rgba(6, 2, 5, 0.48) 0%, rgba(6, 2, 5, 0) 18%, rgba(6, 2, 5, 0) 80%, rgba(5, 1, 4, 0.72) 100%);
+    }
+
+    /* Typography helpers */
+    .font-display {
+      font-family: 'Cormorant Garamond', 'Cinzel', Georgia, serif;
+    }
+    .font-brand {
+      font-family: 'Cinzel', 'Cormorant Garamond', serif;
+    }
+    .font-jp {
+      font-family: 'Noto Serif JP', serif;
+    }
+
+    /* Vertical Japanese Motto */
+    .vertical-jp {
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      letter-spacing: 0.32em;
+    }
+
+    /* Brush Kanji glow */
+    .kanji-emblem {
+      font-family: 'Noto Serif JP', serif;
+      font-weight: 900;
+      color: #ff1e38;
+      text-shadow:
+        0 0 12px rgba(255, 24, 56, 0.85),
+        0 0 28px rgba(200, 10, 38, 0.55),
+        0 2px 6px rgba(0, 0, 0, 0.9);
+      user-select: none;
+    }
+
+    /* =========================================================================
+       CHAMFERED ARCHITECTURAL AUTHENTICATION PANEL
+       Matches the sleek clipped obsidian glass silhouette from the reference
+       ========================================================================= */
+    .auth-shell {
+      position: relative;
+      width: 100%;
+      max-width: 416px;
+      isolation: isolate;
+    }
+
+    .auth-card {
+      position: relative;
+      background:
+        radial-gradient(120% 70% at 50% 0%, rgba(165, 12, 36, 0.20) 0%, rgba(12, 5, 9, 0.76) 46%, rgba(9, 3, 7, 0.84) 100%),
+        linear-gradient(180deg, rgba(16, 6, 11, 0.74) 0%, rgba(8, 3, 6, 0.82) 100%);
+      backdrop-filter: blur(18px) saturate(125%);
+      -webkit-backdrop-filter: blur(18px) saturate(125%);
+      clip-path: polygon(
+        22px 0%, calc(100% - 22px) 0%,
+        100% 22px, 100% calc(100% - 22px),
+        calc(100% - 22px) 100%, 22px 100%,
+        0% calc(100% - 22px), 0% 22px
+      );
+      box-shadow:
+        0 28px 80px rgba(0, 0, 0, 0.8),
+        inset 0 1px 0 rgba(255, 190, 200, 0.16),
+        inset 0 -1px 0 rgba(255, 36, 68, 0.25);
+    }
+
+    /* Soft ambient crimson floor reflection under the panel */
+    .auth-under-glow {
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      bottom: -14px;
+      height: 28px;
+      background: radial-gradient(ellipse at center, rgba(255, 24, 58, 0.65) 0%, rgba(255, 24, 58, 0) 72%);
+      filter: blur(12px);
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    /* SVG Chamfer Frame Overlay */
+    .auth-frame-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    /* Input Fields */
+    .taka-input-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      background: rgba(20, 12, 17, 0.62);
+      border: 1px solid rgba(255, 230, 236, 0.14);
+      border-radius: 10px;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+    }
+    .taka-input-wrap:hover {
+      border-color: rgba(255, 140, 158, 0.28);
+      background: rgba(26, 14, 20, 0.72);
+    }
+    .taka-input-wrap:focus-within {
+      border-color: rgba(255, 42, 70, 0.78);
+      background: rgba(28, 12, 18, 0.84);
+      box-shadow: 0 0 0 3px rgba(229, 20, 47, 0.16), 0 0 20px rgba(229, 20, 47, 0.18);
+    }
+    .taka-input-wrap.has-error {
+      border-color: rgba(255, 68, 88, 0.9);
+      box-shadow: 0 0 0 3px rgba(255, 42, 70, 0.22);
+    }
+    .taka-input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #f8f3f5;
+      font-size: 0.92rem;
+      padding: 0.82rem 0.9rem 0.82rem 2.65rem;
+      letter-spacing: 0.01em;
+    }
+    .taka-input::placeholder {
+      color: rgba(220, 205, 212, 0.44);
+    }
+
+    /* Primary Forged Crimson CTA Button */
+    .btn-crimson-forge {
+      position: relative;
+      width: 100%;
+      min-height: 48px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 62, 88, 0.72);
+      background:
+        radial-gradient(90% 140% at 15% 50%, rgba(255, 32, 62, 0.42) 0%, rgba(76, 8, 20, 0.75) 48%, rgba(22, 5, 10, 0.95) 100%);
+      color: #ffffff;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      overflow: hidden;
+      transition: transform 0.22s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+      box-shadow:
+        0 0 22px rgba(229, 20, 47, 0.34),
+        inset 0 0 18px rgba(255, 34, 68, 0.24);
+    }
+    .btn-crimson-forge::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(110deg, transparent 20%, rgba(255, 110, 130, 0.28) 48%, transparent 76%);
+      transform: translateX(-110%);
+      transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+      pointer-events: none;
+    }
+    .btn-crimson-forge:hover:not(:disabled) {
+      border-color: rgba(255, 96, 118, 0.95);
+      box-shadow:
+        0 0 32px rgba(255, 30, 62, 0.52),
+        inset 0 0 24px rgba(255, 50, 80, 0.36);
+      transform: translateY(-1px);
+    }
+    .btn-crimson-forge:hover:not(:disabled)::before {
+      transform: translateX(110%);
+    }
+    .btn-crimson-forge:active:not(:disabled) {
+      transform: translateY(0px) scale(0.992);
+    }
+    .btn-crimson-forge:disabled {
+      opacity: 0.72;
+      cursor: wait;
+    }
+
+    /* Social Provider Buttons */
+    .btn-oauth {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 44px;
+      border-radius: 10px;
+      background: rgba(24, 15, 20, 0.68);
+      border: 1px solid rgba(255, 232, 238, 0.12);
+      transition: transform 0.2s ease, border-color 0.22s ease, background-color 0.22s ease, box-shadow 0.22s ease;
+      cursor: pointer;
+    }
+    .btn-oauth:hover {
+      background: rgba(42, 18, 26, 0.85);
+      border-color: rgba(255, 64, 92, 0.55);
+      box-shadow: 0 0 18px rgba(229, 20, 47, 0.24);
+      transform: translateY(-2px);
+    }
+
+    /* Custom Checkbox */
+    .taka-checkbox {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 224, 230, 0.35);
+      background: rgba(20, 10, 15, 0.7);
+      display: grid;
+      place-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+    .taka-checkbox::after {
+      content: "";
+      width: 8px;
+      height: 8px;
+      transform: scale(0);
+      transition: transform 0.16s ease;
+      background: #ff2a46;
+      clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+    }
+    .taka-checkbox:checked {
+      border-color: #ff2a46;
+      background: rgba(229, 20, 47, 0.22);
+      box-shadow: 0 0 10px rgba(255, 42, 70, 0.35);
+    }
+    .taka-checkbox:checked::after {
+      transform: scale(1);
+    }
+
+    /* HUD Glass Pill */
+    .hud-pill {
+      background: rgba(14, 6, 10, 0.58);
+      border: 1px solid rgba(255, 220, 228, 0.12);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: border-color 0.25s ease, background-color 0.25s ease;
+    }
+    .hud-pill:hover {
+      border-color: rgba(255, 58, 86, 0.45);
+      background: rgba(24, 9, 15, 0.74);
+    }
+
+    /* Tab Active Glow Bar */
+    .tab-indicator {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 50%;
+      height: 2px;
+      background: linear-gradient(90deg, rgba(255, 30, 58, 0.1) 0%, #ff2644 50%, rgba(255, 30, 58, 0.1) 100%);
+      box-shadow: 0 0 14px #ff2644, 0 -4px 16px rgba(255, 38, 68, 0.65);
+      transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* Preloader Curtain */
+    #cinematic-curtain {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: radial-gradient(circle at 50% 45%, #1c040b 0%, #050104 75%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      pointer-events: all;
+    }
+
+    /* Spinner animation */
+    @keyframes spinSlow {
+      to { transform: rotate(360deg); }
+    }
+    .animate-spin-fast {
+      animation: spinSlow 0.8s linear infinite;
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #070205; }
+    ::-webkit-scrollbar-thumb { background: rgba(229, 20, 47, 0.45); border-radius: 99px; }
+
+    /* Reduced motion override */
+    @media (prefers-reduced-motion: reduce) {
+      .btn-crimson-forge::before { display: none; }
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-rose-600/40 selection:text-white">
+
+  <!-- =========================================================================
+       CINEMATIC PRELOADER CURTAIN
+       ========================================================================= -->
+  <div id="cinematic-curtain" aria-live="polite">
+    <div class="kanji-emblem text-6xl mb-4" style="letter-spacing: 0.05em;">滅</div>
+    <div class="font-brand text-sm tracking-[0.55em] text-rose-100/80 mb-6 pl-2">TAKADORI</div>
+    <div class="w-44 h-[2px] bg-white/10 rounded-full overflow-hidden">
+      <div id="loader-bar" class="h-full w-1/4 bg-gradient-to-r from-rose-700 via-rose-500 to-rose-300 transition-all duration-300"></div>
+    </div>
+    <p id="loader-status" class="mt-3 text-[11px] uppercase tracking-[0.25em] text-rose-200/45">Awakening the Living World</p>
+  </div>
+
+  <!-- =========================================================================
+       3D LIVING WORLD CANVAS & ATMOSPHERIC VIGNETTE
+       ========================================================================= -->
+  <canvas id="world-canvas" aria-label="Interactive 3D Japanese crimson nightscape featuring a giant blossom tree, blood moon, pagoda, torii gate, waterfall, and reflective lake"></canvas>
+  <div class="cinema-vignette"></div>
+
+  <!-- =========================================================================
+       INLINE TOAST FEEDBACK NOTIFICATION (REPLACES ALERT/CONFIRM)
+       ========================================================================= -->
+  <div id="toast-container" class="fixed top-20 left-1/2 -translate-x-1/2 z-40 pointer-events-none flex flex-col items-center gap-2 w-[92vw] max-w-md"></div>
+
+  <!-- =========================================================================
+       MAIN CINEMATIC HUD & AUTHENTICATION OVERLAY
+       ========================================================================= -->
+  <div id="ui-layer" class="relative z-10 min-h-screen w-full flex flex-col justify-between px-5 sm:px-8 lg:px-12 py-5 sm:py-7 pointer-events-none">
+
+    <!-- TOP NAVIGATION / HUD BAR -->
+    <header class="w-full flex items-center justify-between gap-4 pointer-events-auto">
+      <!-- Top-Left Brand Emblem -->
+      <a href="#top" id="brand-home" class="group flex items-center gap-3.5 focus:outline-none" aria-label="Takadori Home">
+        <span class="kanji-emblem text-3xl sm:text-4xl leading-none transition-transform duration-300 group-hover:scale-105">滅</span>
+        <div class="flex flex-col">
+          <span class="font-brand text-sm sm:text-base tracking-[0.42em] text-stone-100/95 font-medium">TAKADORI</span>
+          <span class="block h-[1px] w-full mt-1 bg-gradient-to-r from-rose-600/80 via-rose-400/30 to-transparent"></span>
+        </div>
+      </a>
+
+      <!-- Top-Right Atmospheric Controls & Language Toggle -->
+      <div class="flex items-center gap-2.5 sm:gap-3">
+        <!-- Language Toggle -->
+        <button id="btn-lang" type="button" class="hud-pill rounded-full px-3.5 py-2 text-xs font-medium tracking-wider text-stone-200/90 flex items-center gap-2 cursor-pointer" title="Switch Language">
+          <svg class="w-3.5 h-3.5 text-rose-400/90" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9.5" />
+            <path d="M2.5 12h19M12 2.5a14.5 14.5 0 0 1 0 19M12 2.5a14.5 14.5 0 0 0 0 19" />
+          </svg>
+          <span id="lang-label">EN</span>
+          <svg class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+
+        <!-- Wind Gust / Interactive Atmosphere Trigger -->
+        <button id="btn-wind" type="button" class="hud-pill rounded-full w-9 h-9 flex items-center justify-center text-stone-200/85 hover:text-rose-300 cursor-pointer" title="Summon Crimson Wind Gust" aria-label="Summon Crimson Wind Gust">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+            <path stroke-linecap="round" d="M3 8h11a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h8a2.5 2.5 0 1 1-2.5 2.5" />
+          </svg>
+        </button>
+
+        <!-- Procedural Soundscape Toggle -->
+        <button id="btn-audio" type="button" class="hud-pill rounded-full w-9 h-9 flex items-center justify-center text-stone-200/85 hover:text-rose-300 cursor-pointer" title="Toggle Ambient Soundscape" aria-label="Toggle Ambient Soundscape" aria-pressed="false">
+          <svg id="icon-audio-off" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5L6 9H3v6h3l5 4V5zM22 9l-6 6M16 9l6 6" />
+          </svg>
+          <svg id="icon-audio-on" class="w-4 h-4 hidden text-rose-400" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5L6 9H3v6h3l5 4V5zM15.5 8.5a5 5 0 0 1 0 7M18.8 5.5a9.5 9.5 0 0 1 0 13" />
+          </svg>
+        </button>
+
+        <!-- Subtle Crimson Horizon Pulse Graphic (from reference top-right) -->
+        <svg class="hidden md:block w-16 h-6 opacity-80" viewBox="0 0 76 24" fill="none">
+          <path d="M0 19 H32 L42 15 L49 4 L56 17 L64 19 H76" stroke="url(#pulseGrad)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+          <defs>
+            <linearGradient id="pulseGrad" x1="0" y1="0" x2="76" y2="0" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#ff2644" stop-opacity="0.1" />
+              <stop offset="65%" stop-color="#ff2644" stop-opacity="0.95" />
+              <stop offset="100%" stop-color="#ff2644" stop-opacity="0.2" />
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+    </header>
+
+    <!-- CENTER STAGE: LEFT CINEMATIC COPY & RIGHT AUTHENTICATION PANEL -->
+    <main class="w-full flex-1 flex flex-col lg:flex-row items-center lg:items-center justify-between gap-10 lg:gap-8 my-6 lg:my-0">
+
+      <!-- LEFT COLUMN: Vertical Calligraphy + Hero Headline -->
+      <section id="hero-left" class="w-full lg:w-[48%] flex items-end lg:items-center gap-5 sm:gap-7 pt-6 sm:pt-12 lg:pt-28 pointer-events-none select-none">
+        <!-- Vertical Japanese Poetry Ornament -->
+        <div class="hidden sm:flex flex-col items-center gap-3 text-stone-200/80">
+          <!-- Crimson Star Top -->
+          <svg class="w-4 h-4 text-rose-500 drop-shadow-[0_0_8px_rgba(255,30,60,0.9)]" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 1l2.2 8.8L23 12l-8.8 2.2L12 23l-2.2-8.8L1 12l8.8-2.2z" />
+          </svg>
+          <span class="w-[1px] h-5 bg-gradient-to-b from-rose-500/70 to-transparent"></span>
+          <p class="font-jp vertical-jp text-xs sm:text-[13px] tracking-[0.35em] text-stone-200/85 drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+            夢を追え、限界を超える
+          </p>
+          <span class="w-[1px] h-5 bg-gradient-to-t from-rose-500/70 to-transparent"></span>
+          <!-- Crimson Star Bottom -->
+          <svg class="w-3.5 h-3.5 text-rose-500/90 drop-shadow-[0_0_8px_rgba(255,30,60,0.85)]" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 1l2.2 8.8L23 12l-8.8 2.2L12 23l-2.2-8.8L1 12l8.8-2.2z" />
+          </svg>
+        </div>
+
+        <!-- Main Hero Typography -->
+        <div class="flex flex-col max-w-xl">
+          <h1 class="font-display text-4xl sm:text-5xl xl:text-[3.85rem] leading-[1.06] font-normal tracking-tight drop-shadow-[0_8px_28px_rgba(0,0,0,0.92)]">
+            <span id="hero-line-1" class="block text-stone-100/95">Dream. Build.</span>
+            <span id="hero-line-2" class="block text-[#eb1a34] drop-shadow-[0_0_24px_rgba(235,26,52,0.45)]">Beyond Limits.</span>
+          </h1>
+          <div class="mt-4 flex items-center gap-4">
+            <p id="hero-subtitle" class="text-xs sm:text-sm tracking-[0.06em] text-stone-300/75 font-light">
+              Enter a new realm of possibilities.
+            </p>
+            <span class="hidden sm:block h-[1px] w-20 bg-gradient-to-r from-stone-400/50 to-transparent"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN: TRANSLUCENT CHAMFERED AUTHENTICATION PANEL -->
+      <section id="auth-container" class="w-full lg:w-auto flex justify-center lg:justify-end pointer-events-auto">
+        <div class="auth-shell">
+          <div class="auth-under-glow"></div>
+
+          <!-- Precision SVG Chamfered Frame Border -->
+          <svg class="auth-frame-svg" viewBox="0 0 416 560" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="frameBorderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ffdce2" stop-opacity="0.58" />
+                <stop offset="22%" stop-color="#ff2846" stop-opacity="0.42" />
+                <stop offset="50%" stop-color="#ffffff" stop-opacity="0.16" />
+                <stop offset="78%" stop-color="#ff2846" stop-opacity="0.52" />
+                <stop offset="100%" stop-color="#ff99aa" stop-opacity="0.65" />
+              </linearGradient>
+              <linearGradient id="edgeCrimsonGlow" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#ff2244" stop-opacity="0.85" />
+                <stop offset="50%" stop-color="#ff2244" stop-opacity="0.0" />
+                <stop offset="100%" stop-color="#ff2244" stop-opacity="0.7" />
+              </linearGradient>
+            </defs>
+            <!-- Outer hairline chamfer -->
+            <polygon points="22,1 394,1 415,22 415,538 394,559 22,559 1,538 1,22" fill="none" stroke="url(#frameBorderGrad)" stroke-width="1.3" />
+            <!-- Inner architectural accent line -->
+            <polygon points="26,6 390,6 410,26 410,534 390,554 26,554 6,534 6,26" fill="none" stroke="url(#edgeCrimsonGlow)" stroke-width="0.7" opacity="0.55" />
+            <!-- Top-left & bottom-right luminous brackets -->
+            <polyline points="2,46 2,22 22,2 48,2" fill="none" stroke="#ffdce4" stroke-width="1.6" opacity="0.75" />
+            <polyline points="368,558 394,558 414,538 414,514" fill="none" stroke="#ff3552" stroke-width="1.8" opacity="0.9" />
+          </svg>
+
+          <!-- Main Chamfered Card Body -->
+          <div class="auth-card px-6 sm:px-8 py-7 sm:py-8">
+
+            <!-- AUTH HEADER -->
+            <div class="flex flex-col items-center text-center mb-6">
+              <div class="kanji-emblem text-5xl leading-none mb-2">滅</div>
+              <div class="font-brand text-lg tracking-[0.44em] text-stone-100/95 pl-[0.44em] font-medium">TAKADORI</div>
+              <div class="flex items-center gap-3 mt-1.5">
+                <span class="w-4 h-[1px] bg-stone-400/40"></span>
+                <span id="auth-kicker" class="text-[10px] uppercase tracking-[0.34em] text-stone-300/65 font-medium">Authentication</span>
+                <span class="w-4 h-[1px] bg-stone-400/40"></span>
+              </div>
+            </div>
+
+            <!-- VIEW 1: LOGIN / REGISTER TABS & FORM -->
+            <div id="auth-main-view">
+              <!-- Tab Switcher -->
+              <div class="relative grid grid-cols-2 border-b border-white/10 mb-6" role="tablist">
+                <button id="tab-login" type="button" role="tab" aria-selected="true" class="py-2.5 text-sm font-medium tracking-wide text-white transition-colors duration-200 cursor-pointer">
+                  Login
+                </button>
+                <button id="tab-register" type="button" role="tab" aria-selected="false" class="py-2.5 text-sm font-medium tracking-wide text-stone-400 hover:text-stone-200 transition-colors duration-200 cursor-pointer">
+                  Register
+                </button>
+                <div id="tab-indicator" class="tab-indicator"></div>
+              </div>
+
+              <!-- Inline Form Status / Error Alert -->
+              <div id="form-feedback" class="hidden mb-4 px-3.5 py-2.5 rounded-lg text-xs leading-relaxed border" role="alert"></div>
+
+              <!-- AUTH FORM -->
+              <form id="auth-form" novalidate class="space-y-3.5">
+                <!-- Register-only Display Name Field -->
+                <div id="field-username-group" class="hidden">
+                  <div class="taka-input-wrap" id="wrap-username">
+                    <span class="absolute left-3.5 text-stone-400/75 pointer-events-none">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 12a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5zM4.5 20.5a7.5 7.5 0 0 1 15 0" />
+                      </svg>
+                    </span>
+                    <input id="input-username" name="username" type="text" autocomplete="username" placeholder="Username" class="taka-input" />
+                  </div>
+                  <p id="err-username" class="hidden text-[11px] text-rose-400 mt-1 pl-1"></p>
+                </div>
+
+                <!-- Primary Identifier (Username or Email in Login; Email in Register) -->
+                <div>
+                  <div class="taka-input-wrap" id="wrap-identifier">
+                    <span class="absolute left-3.5 text-stone-400/75 pointer-events-none">
+                      <svg id="icon-id-user" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 12a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5zM4.5 20.5a7.5 7.5 0 0 1 15 0" />
+                      </svg>
+                      <svg id="icon-id-mail" class="w-4 h-4 hidden" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                        <rect x="3" y="5" width="18" height="14" rx="2.5" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.5 7l8.5 6 8.5-6" />
+                      </svg>
+                    </span>
+                    <input id="input-identifier" name="identifier" type="text" autocomplete="email" placeholder="Username or Email" class="taka-input" required />
+                  </div>
+                  <p id="err-identifier" class="hidden text-[11px] text-rose-400 mt-1 pl-1"></p>
+                </div>
+
+                <!-- Password Field with Visibility Toggle -->
+                <div>
+                  <div class="taka-input-wrap" id="wrap-password">
+                    <span class="absolute left-3.5 text-stone-400/75 pointer-events-none">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                        <rect x="4" y="11" width="16" height="10" rx="2" />
+                        <path stroke-linecap="round" d="M8 11V7.5a4 4 0 0 1 8 0V11" />
+                      </svg>
+                    </span>
+                    <input id="input-password" name="password" type="password" autocomplete="current-password" placeholder="Password" class="taka-input pr-11" required />
+                    <button id="toggle-password" type="button" class="absolute right-2 p-2 text-stone-400 hover:text-rose-300 transition-colors cursor-pointer" aria-label="Toggle password visibility">
+                      <svg id="eye-closed" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18M10.6 10.6a2.5 2.5 0 0 0 3.5 3.5M9.9 5.1A10.2 10.2 0 0 1 12 4.9c5.2 0 9.1 3.7 10 7.1a10.4 10.4 0 0 1-3.2 4.7M6.3 6.3A10.4 10.4 0 0 0 2 12c.9 3.4 4.8 7.1 10 7.1 1.7 0 3.3-.4 4.7-1.1" />
+                      </svg>
+                      <svg id="eye-open" class="w-4 h-4 hidden" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M2 12s3.8-7 10-7 10 7 10 7-3.8 7-10 7-10-7-10-7z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    </button>
+                  </div>
+                  <p id="err-password" class="hidden text-[11px] text-rose-400 mt-1 pl-1"></p>
+
+                  <!-- Live Password Strength Meter (Register Mode) -->
+                  <div id="password-strength-box" class="hidden mt-2">
+                    <div class="flex gap-1.5 h-1">
+                      <div id="str-1" class="flex-1 rounded-full bg-white/10 transition-colors duration-300"></div>
+                      <div id="str-2" class="flex-1 rounded-full bg-white/10 transition-colors duration-300"></div>
+                      <div id="str-3" class="flex-1 rounded-full bg-white/10 transition-colors duration-300"></div>
+                      <div id="str-4" class="flex-1 rounded-full bg-white/10 transition-colors duration-300"></div>
+                    </div>
+                    <p id="str-label" class="text-[10px] text-stone-400 mt-1 text-right tracking-wide">Strength: Weak</p>
+                  </div>
+                </div>
+
+                <!-- Confirm Password Field (Register Mode) -->
+                <div id="field-confirm-group" class="hidden">
+                  <div class="taka-input-wrap" id="wrap-confirm">
+                    <span class="absolute left-3.5 text-stone-400/75 pointer-events-none">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 2l7 4v6c0 5-3.2 8.7-7 10-3.8-1.3-7-5-7-10V6l7-4z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4" />
+                      </svg>
+                    </span>
+                    <input id="input-confirm" name="confirmPassword" type="password" autocomplete="new-password" placeholder="Confirm Password" class="taka-input" />
+                  </div>
+                  <p id="err-confirm" class="hidden text-[11px] text-rose-400 mt-1 pl-1"></p>
+                </div>
+
+                <!-- Options Row: Remember Me & Forgot Password -->
+                <div id="login-options-row" class="flex items-center justify-between pt-1 pb-1 text-xs">
+                  <label class="flex items-center gap-2 text-stone-300/80 cursor-pointer select-none">
+                    <input id="input-remember" type="checkbox" class="taka-checkbox" />
+                    <span id="lbl-remember">Remember me</span>
+                  </label>
+                  <button id="btn-forgot" type="button" class="text-stone-300/75 hover:text-rose-400 transition-colors cursor-pointer">
+                    Forgot password?
+                  </button>
+                </div>
+
+                <!-- Register Terms Row -->
+                <div id="register-terms-row" class="hidden pt-1 pb-1 text-xs">
+                  <label class="flex items-start gap-2.5 text-stone-300/80 cursor-pointer select-none">
+                    <input id="input-terms" type="checkbox" class="taka-checkbox mt-0.5" />
+                    <span>I accept the <span class="text-rose-400">Takadori Realm Covenant</span> &amp; privacy seal.</span>
+                  </label>
+                  <p id="err-terms" class="hidden text-[11px] text-rose-400 mt-1 pl-1"></p>
+                </div>
+
+                <!-- Primary Submit CTA -->
+                <button id="btn-submit" type="submit" class="btn-crimson-forge flex items-center justify-center gap-2.5 mt-2">
+                  <span id="submit-label">Login</span>
+                  <svg id="submit-icon" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3" />
+                  </svg>
+                  <svg id="submit-spinner" class="w-4 h-4 hidden animate-spin-fast" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+                    <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v3a5 5 0 0 0-5 5H4z"></path>
+                  </svg>
+                </button>
+              </form>
+
+              <!-- Social Divider -->
+              <div class="flex items-center gap-3 my-5">
+                <span class="flex-1 h-[1px] bg-white/10"></span>
+                <span id="lbl-divider" class="text-[11px] text-stone-400/80 tracking-wide">or continue with</span>
+                <span class="flex-1 h-[1px] bg-white/10"></span>
+              </div>
+
+              <!-- OAuth Social Buttons -->
+              <div class="flex items-center justify-center gap-3.5">
+                <!-- Google -->
+                <button type="button" data-provider="Google" class="btn-oauth" aria-label="Continue with Google">
+                  <svg class="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58l3.7 2.87c2.16-2 3.72-4.94 3.72-8.69z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09A6.9 6.9 0 0 1 5.49 12c0-.73.13-1.43.35-2.09V7.07H2.18A11 11 0 0 0 1 12c0 1.78.43 3.45 1.18 4.93l3.66-2.84z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.7-2.87c-.98.66-2.23 1.06-3.58 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  </svg>
+                </button>
+                <!-- Discord -->
+                <button type="button" data-provider="Discord" class="btn-oauth" aria-label="Continue with Discord">
+                  <svg class="w-5 h-5" fill="#7289DA" viewBox="0 0 24 24">
+                    <path d="M20.317 4.37a19.8 19.8 0 0 0-4.885-1.515.07.07 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.1.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.06.06 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                  </svg>
+                </button>
+                <!-- GitHub -->
+                <button type="button" data-provider="GitHub" class="btn-oauth" aria-label="Continue with GitHub">
+                  <svg class="w-5 h-5 text-stone-100" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.68-1.28-1.68-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.79 0c2.21-1.49 3.18-1.18 3.18-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.4-5.25 5.68.41.35.78 1.05.78 2.13 0 1.54-.01 2.78-.01 3.16 0 .31.21.67.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Switch Prompt -->
+              <p class="mt-5 text-center text-xs text-stone-400">
+                <span id="switch-prompt">Don't have an account?</span>
+                <button id="btn-switch-mode" type="button" class="ml-1 text-rose-400 hover:text-rose-300 font-medium transition-colors cursor-pointer">
+                  Register now →
+                </button>
+              </p>
+            </div>
+
+            <!-- VIEW 2: FORGOT PASSWORD RECOVERY VIEW -->
+            <div id="auth-recovery-view" class="hidden space-y-4">
+              <div class="text-center">
+                <h2 class="font-display text-2xl text-stone-100">Restore Your Seal</h2>
+                <p class="text-xs text-stone-400 mt-1 leading-relaxed">
+                  Enter the email bound to your sanctuary account. We will dispatch a recovery lantern link.
+                </p>
+              </div>
+              <form id="recovery-form" novalidate class="space-y-3.5">
+                <div class="taka-input-wrap" id="wrap-recovery-email">
+                  <span class="absolute left-3.5 text-stone-400/75 pointer-events-none">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                      <rect x="3" y="5" width="18" height="14" rx="2.5" />
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3.5 7l8.5 6 8.5-6" />
+                    </svg>
+                  </span>
+                  <input id="input-recovery-email" type="email" placeholder="you@takadori.realm" class="taka-input" required />
+                </div>
+                <p id="err-recovery" class="hidden text-[11px] text-rose-400 pl-1"></p>
+                <button id="btn-recovery-submit" type="submit" class="btn-crimson-forge flex items-center justify-center gap-2">
+                  <span>Send Recovery Seal</span>
+                </button>
+              </form>
+              <button id="btn-back-to-login" type="button" class="w-full py-2 text-xs text-stone-400 hover:text-rose-300 transition-colors cursor-pointer">
+                ← Return to Authentication
+              </button>
+            </div>
+
+            <!-- VIEW 3: AUTHENTICATED REALM ENTRY STATE -->
+            <div id="auth-success-view" class="hidden text-center space-y-5 py-3">
+              <div class="mx-auto w-14 h-14 rounded-full bg-rose-500/15 border border-rose-500/50 flex items-center justify-center shadow-[0_0_28px_rgba(255,34,68,0.4)]">
+                <svg class="w-7 h-7 text-rose-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div>
+                <p class="text-[11px] uppercase tracking-[0.3em] text-rose-400/90 mb-1">Gateway Unsealed</p>
+                <h2 class="font-display text-3xl text-stone-100">Welcome, <span id="welcome-user" class="text-rose-400">Traveler</span></h2>
+                <p class="text-xs text-stone-300/75 mt-2 leading-relaxed">
+                  The crimson torii stands open. Move across the living nightscape or summon the wind at will.
+                </p>
+              </div>
+              <div class="grid grid-cols-2 gap-2.5 pt-2">
+                <button id="btn-explore-world" type="button" class="btn-crimson-forge text-xs px-3 py-2.5">
+                  Explore Realm
+                </button>
+                <button id="btn-sign-out" type="button" class="rounded-[10px] border border-white/15 bg-white/5 hover:bg-white/10 text-xs text-stone-200 px-3 py-2.5 transition-colors cursor-pointer">
+                  Sign Out
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- BOTTOM FOOTER BAR -->
+    <footer class="w-full flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 pointer-events-auto">
+      <!-- Bottom-Left Year Stamp -->
+      <div class="flex flex-col items-center sm:items-start">
+        <div class="font-brand text-[11px] tracking-[0.36em] text-stone-300/75">
+          TAKADORI <span class="text-rose-500 mx-1">×</span> 2026
+        </div>
+        <div class="mt-1.5 h-[1px] w-44 bg-gradient-to-r from-rose-600/80 via-rose-500/25 to-transparent"></div>
+      </div>
+
+      <!-- Bottom-Right Poetic Quote + Compass Rose -->
+      <div class="flex items-center gap-3.5 text-right">
+        <p id="footer-quote" class="text-[11px] sm:text-xs text-stone-300/65 italic leading-snug">
+          “Not just a destination,<br class="hidden sm:inline" /> but a journey.”
+        </p>
+        <span class="hidden sm:block w-[1px] h-7 bg-white/15"></span>
+        <button id="btn-reset-cam" type="button" class="group p-1 cursor-pointer" title="Recenter Cinematic Camera" aria-label="Recenter Cinematic Camera">
+          <svg class="w-6 h-6 text-rose-500 drop-shadow-[0_0_10px_rgba(255,34,68,0.8)] transition-transform duration-500 group-hover:rotate-90" viewBox="0 0 32 32" fill="currentColor">
+            <path d="M16 1l2.8 11.2L30 16l-11.2 2.8L16 31l-2.8-12.2L2 16l11.2-3.8z" />
+            <path d="M16 7l1.2 7.8L25 16l-7.8 1.2L16 25l-1.2-7.8L7 16l7.8-1.2z" opacity="0.55" transform="rotate(45 16 16)" />
+          </svg>
+        </button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- FLOATING RETURN-TO-PANEL BUTTON (WHEN EXPLORING THE 3D WORLD FREELY) -->
+  <button id="btn-show-ui" type="button" class="hidden fixed bottom-6 right-6 z-30 hud-pill rounded-full px-5 py-2.5 text-xs tracking-widest uppercase text-rose-200 border-rose-500/40 shadow-[0_0_24px_rgba(229,20,47,0.4)] cursor-pointer">
+    Return to Sanctuary UI
+  </button>
+
+  <!-- =========================================================================
+       CORE 3D WORLD ENGINE, PROCEDURAL ASSETS, CUSTOM SHADERS & AUTH LOGIC
+       ========================================================================= -->
+  <script>
+    (() => {
+      'use strict';
+
+      /* =======================================================================
+         1. ADAPTIVE PERFORMANCE & REDUCED-MOTION PROFILE
+         ======================================================================= */
+      const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
+
+      const QUALITY = {
+        pixelRatio: Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2),
+        blossomClusters: isMobile ? 2100 : 4100,
+        fallingPetals: prefersReducedMotion ? 120 : (isMobile ? 380 : 760),
+        cloudCount: isMobile ? 26 : 44,
+        mistCount: isMobile ? 16 : 28,
+        treeBranchDepth: isMobile ? 4 : 5
+      };
+
+      /* =======================================================================
+         2. DETERMINISTIC PRNG & PROCEDURAL 2D NOISE UTILITIES
+         ======================================================================= */
+      let seedState = 20260719;
+      function rand() {
+        seedState = (seedState * 1664525 + 1013904223) >>> 0;
+        return seedState / 4294967296;
+      }
+      function randRange(min, max) {
+        return min + rand() * (max - min);
+      }
+
+      // Fast 2D value noise for canvas texture generation (moon craters, bark, clouds)
+      function hash2(ix, iy) {
+        const n = Math.sin(ix * 127.1 + iy * 311.7) * 43758.5453123;
+        return n - Math.floor(n);
+      }
+      function noise2(x, y) {
+        const ix = Math.floor(x), iy = Math.floor(y);
+        const fx = x - ix, fy = y - iy;
+        const ux = fx * fx * (3 - 2 * fx);
+        const uy = fy * fy * (3 - 2 * fy);
+        const a = hash2(ix, iy);
+        const b = hash2(ix + 1, iy);
+        const c = hash2(ix, iy + 1);
+        const d = hash2(ix + 1, iy + 1);
+        return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
+      }
+      function fbm2(x, y, octaves = 5) {
+        let v = 0, amp = 0.5, freq = 1;
+        for (let i = 0; i < octaves; i++) {
+          v += amp * noise2(x * freq, y * freq);
+          freq *= 2.04;
+          amp *= 0.5;
+        }
+        return v;
+      }
+
+      /* =======================================================================
+         3. PROCEDURAL CANVAS TEXTURE GENERATORS (ZERO EXTERNAL IMAGE URLS)
+         ======================================================================= */
+
+      /**
+       * Creates a richly detailed blood-red lunar surface texture with dark basaltic maria,
+       * luminous volcanic crimson veins, and layered impact craters.
+       */
+      function createBloodMoonTexture() {
+        const size = isMobile ? 512 : 768;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const img = ctx.createImageData(size, size);
+        const data = img.data;
+
+        // Generate 38 random craters with dark pits and bright crimson rims
+        const craters = [];
+        for (let i = 0; i < 38; i++) {
+          craters.push({
+            x: rand(),
+            y: rand(),
+            r: randRange(0.015, 0.085),
+            depth: randRange(0.25, 0.75)
+          });
+        }
+
+        for (let y = 0; y < size; y++) {
+          const v = y / size;
+          for (let x = 0; x < size; x++) {
+            const u = x / size;
+            // Spherical-friendly seamless noise coordinates
+            const n1 = fbm2(u * 6.5, v * 6.5, 5);
+            const n2 = fbm2(u * 16.0 + 4.2, v * 16.0 - 1.7, 4);
+            const maria = Math.pow(Math.max(0, n1 * 1.15 - 0.12), 1.45);
+            let h = 0.42 + maria * 0.65 + (n2 - 0.5) * 0.25;
+
+            // Apply craters
+            for (let c = 0; c < craters.length; c++) {
+              const cr = craters[c];
+              let dx = u - cr.x;
+              if (dx > 0.5) dx -= 1;
+              if (dx < -0.5) dx += 1;
+              const dy = v - cr.y;
+              const d = Math.sqrt(dx * dx + dy * dy) / cr.r;
+              if (d < 1.35) {
+                if (d < 0.82) {
+                  h -= (1 - d / 0.82) * cr.depth * 0.42;
+                } else {
+                  const rim = Math.sin(((d - 0.82) / 0.53) * Math.PI);
+                  h += rim * cr.depth * 0.22;
+                }
+              }
+            }
+
+            h = Math.max(0.04, Math.min(1.0, h));
+            // Blood-red & ember-white palette ramp
+            const r = Math.min(255, Math.floor(42 + Math.pow(h, 0.75) * 218));
+            const g = Math.min(255, Math.floor(4 + Math.pow(h, 2.35) * 145));
+            const b = Math.min(255, Math.floor(10 + Math.pow(h, 2.55) * 140));
+
+            const idx = (y * size + x) * 4;
+            data[idx] = r;
+            data[idx + 1] = g;
+            data[idx + 2] = b;
+            data[idx + 3] = 255;
+          }
+        }
+        ctx.putImageData(img, 0, 0);
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.ClampToEdgeWrapping;
+        return tex;
+      }
+
+      /**
+       * Creates organic furrowed dark sakura bark albedo + roughness-style depth texture.
+       */
+      function createBarkTexture() {
+        const w = 256, h = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        const img = ctx.createImageData(w, h);
+        const data = img.data;
+
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const u = x / w, v = y / h;
+            // Vertical ridges + subtle horizontal cherry-bark lenticels
+            const ridge = fbm2(u * 18.0, v * 5.5, 4);
+            const fine = fbm2(u * 42.0, v * 16.0, 3);
+            const lenticel = Math.pow(noise2(u * 7.0, v * 48.0), 6.0);
+            const val = Math.max(0, Math.min(1, ridge * 0.7 + fine * 0.3 + lenticel * 0.25));
+
+            const idx = (y * w + x) * 4;
+            // Deep obsidian-charcoal bark with warm mahogany-crimson undertone
+            data[idx] = Math.floor(16 + val * 44);
+            data[idx + 1] = Math.floor(9 + val * 20);
+            data[idx + 2] = Math.floor(13 + val * 24);
+            data[idx + 3] = 255;
+          }
+        }
+        ctx.putImageData(img, 0, 0);
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        return tex;
+      }
+
+      /**
+       * Creates a lush painted multi-blossom crimson sakura cluster sprite texture
+       * so each instanced cluster reads as delicate individual 5-petal flowers, never flat blobs.
+       */
+      function createBlossomClusterTexture() {
+        const size = 256;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, size, size);
+
+        // Draw 9 overlapping 5-petal sakura flowers per cluster card
+        const flowerCount = 9;
+        for (let f = 0; f < flowerCount; f++) {
+          const angle = (f / flowerCount) * Math.PI * 2 + randRange(-0.3, 0.3);
+          const dist = f === 0 ? 0 : randRange(24, 72);
+          const cx = size * 0.5 + Math.cos(angle) * dist;
+          const cy = size * 0.5 + Math.sin(angle) * dist;
+          const radius = randRange(24, 42);
+          const rotOffset = randRange(0, Math.PI * 2);
+
+          // Vary flower brightness for rich internal depth
+          const shade = randRange(0.72, 1.0);
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(rotOffset);
+
+          for (let p = 0; p < 5; p++) {
+            ctx.save();
+            ctx.rotate((p / 5) * Math.PI * 2);
+            const grad = ctx.createRadialGradient(0, -radius * 0.35, 2, 0, -radius * 0.55, radius * 0.85);
+            const rTop = Math.floor(255 * shade);
+            const gTop = Math.floor((68 + rand() * 55) * shade);
+            const bTop = Math.floor((88 + rand() * 50) * shade);
+            grad.addColorStop(0, `rgba(${Math.floor(190 * shade)}, 14, 34, 0.96)`);
+            grad.addColorStop(0.55, `rgba(${rTop}, ${gTop}, ${bTop}, 0.94)`);
+            grad.addColorStop(1, `rgba(255, 195, 206, 0.86)`);
+
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.bezierCurveTo(-radius * 0.44, -radius * 0.35, -radius * 0.48, -radius * 0.92, -radius * 0.1, -radius);
+            // Characteristic sakura petal notch at the tip
+            ctx.lineTo(0, -radius * 0.84);
+            ctx.lineTo(radius * 0.1, -radius);
+            ctx.bezierCurveTo(radius * 0.48, -radius * 0.92, radius * 0.44, -radius * 0.35, 0, 0);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+          }
+
+          // Deep ruby flower core & tiny golden-crimson stamens
+          ctx.fillStyle = 'rgba(72, 4, 16, 0.95)';
+          ctx.beginPath();
+          ctx.arc(0, 0, radius * 0.16, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = 'rgba(255, 190, 145, 0.85)';
+          for (let s = 0; s < 5; s++) {
+            const sa = (s / 5) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.arc(Math.cos(sa) * radius * 0.22, Math.sin(sa) * radius * 0.22, 1.8, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.needsUpdate = true;
+        return tex;
+      }
+
+      /**
+       * Creates a billowing volumetric cloud puff alpha texture for animated storm clouds & mist.
+       */
+      function createCloudTexture() {
+        const size = 256;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const img = ctx.createImageData(size, size);
+        const data = img.data;
+
+        for (let y = 0; y < size; y++) {
+          const dy = (y / size - 0.5) * 2;
+          for (let x = 0; x < size; x++) {
+            const dx = (x / size - 0.5) * 2;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const radial = Math.max(0, 1 - dist);
+            const n = fbm2(x / size * 4.5 + 1.3, y / size * 4.5 + 2.7, 5);
+            const billow = Math.pow(radial, 1.45) * (0.45 + n * 0.95);
+            const alpha = Math.max(0, Math.min(1, (billow - 0.12) * 1.45));
+            const shade = Math.floor(140 + n * 115);
+
+            const idx = (y * size + x) * 4;
+            data[idx] = shade;
+            data[idx + 1] = shade;
+            data[idx + 2] = shade;
+            data[idx + 3] = Math.floor(alpha * 255);
+          }
+        }
+        ctx.putImageData(img, 0, 0);
+        return new THREE.CanvasTexture(canvas);
+      }
+
+      /**
+       * Creates glowing red Japanese shoji lattice window texture for the pagoda & shrine.
+       */
+      function createShojiTexture() {
+        const w = 128, h = 128;
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+
+        // Warm interior candlelit crimson gradient
+        const grad = ctx.createRadialGradient(w * 0.5, h * 0.62, 6, w * 0.5, h * 0.5, w * 0.72);
+        grad.addColorStop(0, '#ff8a6b');
+        grad.addColorStop(0.4, '#ff2038');
+        grad.addColorStop(1, '#7a0518');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+
+        // Dark timber kumiko lattice bars
+        ctx.fillStyle = '#140609';
+        const cols = 4, rows = 4;
+        for (let i = 0; i <= cols; i++) {
+          ctx.fillRect((i / cols) * w - 2.5, 0, 5, h);
+        }
+        for (let j = 0; j <= rows; j++) {
+          ctx.fillRect(0, (j / rows) * h - 2.5, w, 5);
+        }
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        return tex;
+      }
+
+      /* =======================================================================
+         4. FAST GEOMETRY MERGER HELPER (ZERO EXTERNAL ADDON DEPENDENCY)
+         ======================================================================= */
+      function mergeBufferGeometries(geoms) {
+        let totalVerts = 0;
+        let totalIndices = 0;
+        const hasWind = geoms.length > 0 && !!geoms[0].attributes.aWindWeight;
+
+        for (const g of geoms) {
+          totalVerts += g.attributes.position.count;
+          totalIndices += g.index ? g.index.count : g.attributes.position.count;
+        }
+
+        const positions = new Float32Array(totalVerts * 3);
+        const normals = new Float32Array(totalVerts * 3);
+        const uvs = new Float32Array(totalVerts * 2);
+        const winds = hasWind ? new Float32Array(totalVerts) : null;
+        const indices = new Uint32Array(totalIndices);
+
+        let vOffset = 0;
+        let iOffset = 0;
+
+        for (const g of geoms) {
+          const pos = g.attributes.position.array;
+          const norm = g.attributes.normal.array;
+          const uv = g.attributes.uv ? g.attributes.uv.array : null;
+          const count = g.attributes.position.count;
+
+          positions.set(pos, vOffset * 3);
+          normals.set(norm, vOffset * 3);
+          if (uv) uvs.set(uv, vOffset * 2);
+          if (hasWind && g.attributes.aWindWeight) {
+            winds.set(g.attributes.aWindWeight.array, vOffset);
+          }
+
+          if (g.index) {
+            const idxArr = g.index.array;
+            for (let i = 0; i < idxArr.length; i++) {
+              indices[iOffset + i] = idxArr[i] + vOffset;
+            }
+            iOffset += idxArr.length;
+          } else {
+            for (let i = 0; i < count; i++) {
+              indices[iOffset + i] = vOffset + i;
+            }
+            iOffset += count;
+          }
+          vOffset += count;
+          g.dispose();
+        }
+
+        const merged = new THREE.BufferGeometry();
+        merged.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        merged.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+        merged.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+        if (hasWind) {
+          merged.setAttribute('aWindWeight', new THREE.BufferAttribute(winds, 1));
+        }
+        merged.setIndex(new THREE.BufferAttribute(indices, 1));
+        return merged;
+      }
+
+      /* =======================================================================
+         5. PROCEDURAL WEB AUDIO SOUNDSCAPE (NIGHT WIND + DISTANT SHRINE CHIMES)
+         ======================================================================= */
+      class LivingAudioEngine {
+        constructor() {
+          this.ctx = null;
+          this.enabled = false;
+          this.masterGain = null;
+          this.windFilter = null;
+          this.chimeTimer = null;
+        }
+
+        init() {
+          if (this.ctx) return;
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtx) return;
+          this.ctx = new AudioCtx();
+
+          this.masterGain = this.ctx.createGain();
+          this.masterGain.gain.value = 0.0001;
+          this.masterGain.connect(this.ctx.destination);
+
+          // Procedural brown/pink noise buffer for night wind & distant waterfall
+          const bufferSize = this.ctx.sampleRate * 4;
+          const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const output = noiseBuffer.getChannelData(0);
+          let lastOut = 0;
+          for (let i = 0; i < bufferSize; i++) {
+            const white = Math.random() * 2 - 1;
+            output[i] = (lastOut + 0.03 * white) / 1.03;
+            lastOut = output[i];
+            output[i] *= 2.8;
+          }
+
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = noiseBuffer;
+          noise.loop = true;
+
+          this.windFilter = this.ctx.createBiquadFilter();
+          this.windFilter.type = 'bandpass';
+          this.windFilter.frequency.value = 280;
+          this.windFilter.Q.value = 1.6;
+
+          const windGain = this.ctx.createGain();
+          windGain.gain.value = 0.24;
+
+          noise.connect(this.windFilter);
+          this.windFilter.connect(windGain);
+          windGain.connect(this.masterGain);
+          noise.start();
+
+          // Deep resonant night drone (subtle D2 harmonic)
+          const drone = this.ctx.createOscillator();
+          drone.type = 'sine';
+          drone.frequency.value = 73.42;
+          const droneGain = this.ctx.createGain();
+          droneGain.gain.value = 0.055;
+          drone.connect(droneGain);
+          droneGain.connect(this.masterGain);
+          drone.start();
+        }
+
+        toggle() {
+          try {
+            if (!this.ctx) this.init();
+            if (!this.ctx) return false;
+            if (this.ctx.state === 'suspended') this.ctx.resume();
+
+            this.enabled = !this.enabled;
+            const now = this.ctx.currentTime;
+            this.masterGain.gain.cancelScheduledValues(now);
+            this.masterGain.gain.setTargetAtTime(this.enabled ? 0.55 : 0.0001, now, 0.45);
+
+            if (this.enabled) {
+              this.playChime(293.66, 0.12); // D4 Hirajoshi welcome chime
+              this.scheduleChimes();
+            } else if (this.chimeTimer) {
+              clearTimeout(this.chimeTimer);
+              this.chimeTimer = null;
+            }
+            return this.enabled;
+          } catch (err) {
+            return false;
+          }
+        }
+
+        scheduleChimes() {
+          if (!this.enabled) return;
+          // Japanese Hirajoshi pentatonic scale frequencies
+          const scale = [293.66, 311.13, 392.00, 440.00, 466.16, 587.33];
+          this.chimeTimer = setTimeout(() => {
+            if (!this.enabled) return;
+            const freq = scale[Math.floor(Math.random() * scale.length)];
+            this.playChime(freq, 0.055);
+            this.scheduleChimes();
+          }, 4200 + Math.random() * 5200);
+        }
+
+        playChime(freq = 440, peak = 0.09) {
+          if (!this.enabled || !this.ctx) return;
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const overtone = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now);
+          overtone.type = 'triangle';
+          overtone.frequency.setValueAtTime(freq * 2.004, now);
+
+          const overGain = this.ctx.createGain();
+          overGain.gain.value = 0.22;
+
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.exponentialRampToValueAtTime(peak, now + 0.04);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 3.4);
+
+          osc.connect(gain);
+          overtone.connect(overGain);
+          overGain.connect(gain);
+          gain.connect(this.masterGain);
+
+          osc.start(now);
+          overtone.start(now);
+          osc.stop(now + 3.6);
+          overtone.stop(now + 3.6);
+        }
+
+        modulateWind(gustStrength) {
+          if (!this.enabled || !this.windFilter || !this.ctx) return;
+          const targetFreq = 220 + gustStrength * 340;
+          this.windFilter.frequency.setTargetAtTime(targetFreq, this.ctx.currentTime, 0.3);
+        }
+      }
+
+      const audioEngine = new LivingAudioEngine();
+
+      /* =======================================================================
+         6. LIVING 3D WORLD ENGINE (THREE.JS + CUSTOM GLSL SHADERS)
+         ======================================================================= */
+      class TakadoriWorld {
+        constructor(canvas) {
+          this.canvas = canvas;
+          this.clock = new THREE.Clock();
+          this.elapsed = 0;
+
+          // Shared shader uniforms across all living systems
+          this.sharedUniforms = {
+            uTime: { value: 0 },
+            uWindStrength: { value: 0.45 },
+            uWindDir: { value: new THREE.Vector2(0.92, 0.22).normalize() },
+            uMoonDir: { value: new THREE.Vector3(3.2, 15.8, -78).normalize() },
+            uGustImpulse: { value: 0 },
+            uMouseWorld: { value: new THREE.Vector3(0, 6, 8) },
+            uLanternPulse: { value: 1.0 }
+          };
+
+          // Camera state for smooth parallax, breathing & GSAP transitions
+          this.camBase = { x: 0.4, y: 4.5, z: 23.5 };
+          this.camTargetBase = { x: -1.2, y: 4.8, z: -12.0 };
+          this.mouseNorm = { x: 0, y: 0 };
+          this.mouseSmooth = { x: 0, y: 0 };
+          this.dragOffset = { x: 0, y: 0 };
+          this.dragTarget = { x: 0, y: 0 };
+          this.isDragging = false;
+          this.lastPointer = { x: 0, y: 0 };
+
+          // Track lantern lights & hanging lantern meshes for animated flicker & sway
+          this.lanternLights = [];
+          this.hangingLanterns = [];
+          this.stormClouds = [];
+
+          this.initRendererAndScene();
+          this.initLighting();
+          this.buildSkyAndBloodMoon();
+          this.buildStormClouds();
+          this.buildTerrainAndMountains();
+          this.buildGiantBlossomTree();
+          this.buildJapanesePagodaAndShrine();
+          this.buildToriiGateAndStairs();
+          this.buildForegroundPierAndLantern();
+          this.buildWaterfall();
+          this.buildReflectiveLake();
+          this.buildFloatingLakeMist();
+          this.buildFallingPetals();
+          this.bindEvents();
+        }
+
+        initRendererAndScene() {
+          this.scene = new THREE.Scene();
+          this.scene.background = new THREE.Color(0x060205);
+          this.scene.fog = new THREE.FogExp2(0x110308, 0.0112);
+
+          const aspect = window.innerWidth / Math.max(1, window.innerHeight);
+          const fov = aspect < 0.85 ? 56 : 42;
+          this.camera = new THREE.PerspectiveCamera(fov, aspect, 0.4, 340);
+          // Start slightly pulled back for the GSAP entrance glide
+          this.camera.position.set(this.camBase.x - 1.2, this.camBase.y + 1.8, this.camBase.z + 7.5);
+          this.camera.lookAt(this.camTargetBase.x, this.camTargetBase.y, this.camTargetBase.z);
+
+          this.renderer = new THREE.WebGLRenderer({
+            canvas: this.canvas,
+            antialias: !isMobile,
+            powerPreference: 'high-performance',
+            alpha: false
+          });
+          this.renderer.setPixelRatio(QUALITY.pixelRatio);
+          this.renderer.setSize(window.innerWidth, window.innerHeight, false);
+          this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+          this.renderer.toneMappingExposure = 1.18;
+          this.renderer.outputEncoding = THREE.sRGBEncoding;
+          this.renderer.shadowMap.enabled = !isMobile;
+          this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        }
+
+        initLighting() {
+          // Subtle deep indigo-crimson ambient night light
+          const hemi = new THREE.HemisphereLight(0x521226, 0x0b0308, 0.72);
+          this.scene.add(hemi);
+
+          // Main Blood-Red Moon directional key light
+          const moonLight = new THREE.DirectionalLight(0xff2e4d, 2.35);
+          moonLight.position.set(8, 28, -55);
+          if (!isMobile) {
+            moonLight.castShadow = true;
+            moonLight.shadow.mapSize.set(1024, 1024);
+            moonLight.shadow.camera.near = 5;
+            moonLight.shadow.camera.far = 140;
+            const d = 32;
+            moonLight.shadow.camera.left = -d;
+            moonLight.shadow.camera.right = d;
+            moonLight.shadow.camera.top = d;
+            moonLight.shadow.camera.bottom = -d;
+            moonLight.shadow.bias = -0.0005;
+          }
+          this.scene.add(moonLight);
+
+          // Rim backlight to sculpt the giant blossom tree trunk and pagoda eaves
+          const rimLight = new THREE.DirectionalLight(0xff526e, 1.05);
+          rimLight.position.set(-18, 16, 18);
+          this.scene.add(rimLight);
+        }
+
+        /* ---------------------------------------------------------------------
+           SKY DOME, STARFIELD & HUGE BLOOD-RED MOON
+           --------------------------------------------------------------------- */
+        buildSkyAndBloodMoon() {
+          // 1. Custom Gradient Night Sky Dome
+          const skyGeo = new THREE.SphereGeometry(220, 32, 24);
+          const skyMat = new THREE.ShaderMaterial({
+            side: THREE.BackSide,
+            depthWrite: false,
+            uniforms: {
+              uMoonDir: this.sharedUniforms.uMoonDir,
+              uTime: this.sharedUniforms.uTime
+            },
+            vertexShader: `
+              varying vec3 vWorldDir;
+              void main() {
+                vec4 wp = modelMatrix * vec4(position, 1.0);
+                vWorldDir = normalize(wp.xyz);
+                gl_Position = projectionMatrix * viewMatrix * wp;
+              }
+            `,
+            fragmentShader: `
+              uniform vec3 uMoonDir;
+              uniform float uTime;
+              varying vec3 vWorldDir;
+              void main() {
+                vec3 dir = normalize(vWorldDir);
+                float elev = clamp(dir.y, 0.0, 1.0);
+
+                // Deep obsidian zenith transitioning to crimson-misted horizon
+                vec3 zenith = vec3(0.018, 0.006, 0.016);
+                vec3 midSky = vec3(0.08, 0.015, 0.032);
+                vec3 horizon = vec3(0.18, 0.025, 0.052);
+                vec3 col = mix(horizon, midSky, smoothstep(0.0, 0.28, elev));
+                col = mix(col, zenith, smoothstep(0.24, 0.78, elev));
+
+                // Wide crimson lunar atmospheric scatter
+                float moonDot = max(0.0, dot(dir, normalize(uMoonDir)));
+                float aura = pow(moonDot, 6.0) * 0.42 + pow(moonDot, 26.0) * 0.65;
+                col += vec3(0.95, 0.09, 0.18) * aura;
+
+                gl_FragColor = vec4(col, 1.0);
+              }
+            `
+          });
+          this.scene.add(new THREE.Mesh(skyGeo, skyMat));
+
+          // 2. Subtle Twinkling Night Stars
+          const starCount = isMobile ? 220 : 480;
+          const starPos = new Float32Array(starCount * 3);
+          const starPhase = new Float32Array(starCount);
+          const starSize = new Float32Array(starCount);
+
+          for (let i = 0; i < starCount; i++) {
+            const theta = randRange(-Math.PI * 0.85, Math.PI * 0.85);
+            const phi = randRange(0.12, 1.18);
+            const r = randRange(155, 195);
+            starPos[i * 3] = Math.sin(theta) * Math.cos(phi) * r;
+            starPos[i * 3 + 1] = Math.sin(phi) * r + 8;
+            starPos[i * 3 + 2] = -Math.abs(Math.cos(theta) * Math.cos(phi) * r) - 25;
+            starPhase[i] = randRange(0, 6.28);
+            starSize[i] = randRange(1.2, 3.0);
+          }
+
+          const starGeo = new THREE.BufferGeometry();
+          starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+          starGeo.setAttribute('aPhase', new THREE.BufferAttribute(starPhase, 1));
+          starGeo.setAttribute('aSize', new THREE.BufferAttribute(starSize, 1));
+
+          const starMat = new THREE.ShaderMaterial({
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            uniforms: { uTime: this.sharedUniforms.uTime },
+            vertexShader: `
+              attribute float aPhase;
+              attribute float aSize;
+              uniform float uTime;
+              varying float vAlpha;
+              void main() {
+                vAlpha = 0.35 + 0.65 * (0.5 + 0.5 * sin(uTime * 1.4 + aPhase));
+                vec4 mv = modelViewMatrix * vec4(position, 1.0);
+                gl_PointSize = aSize * (160.0 / max(1.0, -mv.z));
+                gl_Position = projectionMatrix * mv;
+              }
+            `,
+            fragmentShader: `
+              varying float vAlpha;
+              void main() {
+                float d = length(gl_PointCoord - 0.5);
+                if (d > 0.5) discard;
+                float glow = pow(1.0 - d * 2.0, 2.2);
+                gl_FragColor = vec4(1.0, 0.84, 0.88, glow * vAlpha * 0.72);
+              }
+            `
+          });
+          this.scene.add(new THREE.Points(starGeo, starMat));
+
+          // 3. Huge Blood-Red Moon with Detailed Crater Surface Shader
+          const moonPos = new THREE.Vector3(3.4, 15.8, -80);
+          this.moonPosition = moonPos;
+          const moonTex = createBloodMoonTexture();
+
+          const moonGeo = new THREE.SphereGeometry(12.2, 48, 48);
+          const moonMat = new THREE.ShaderMaterial({
+            fog: false,
+            uniforms: {
+              uMap: { value: moonTex },
+              uTime: this.sharedUniforms.uTime
+            },
+            vertexShader: `
+              varying vec2 vUv;
+              varying vec3 vNormalView;
+              varying vec3 vViewDir;
+              void main() {
+                vUv = uv;
+                vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+                vNormalView = normalize(normalMatrix * normal);
+                vViewDir = normalize(-mvPos.xyz);
+                gl_Position = projectionMatrix * mvPos;
+              }
+            `,
+            fragmentShader: `
+              uniform sampler2D uMap;
+              uniform float uTime;
+              varying vec2 vUv;
+              varying vec3 vNormalView;
+              varying vec3 vViewDir;
+              void main() {
+                vec3 surf = texture2D(uMap, vUv).rgb;
+                float ndotv = clamp(dot(normalize(vNormalView), normalize(vViewDir)), 0.0, 1.0);
+                // Luminous fiery crimson limb and warm inner core
+                float limb = pow(1.0 - ndotv, 2.2);
+                float pulse = 0.96 + 0.04 * sin(uTime * 0.7);
+                vec3 glowCore = surf * (1.28 * pulse);
+                vec3 fieryRim = vec3(1.0, 0.24, 0.34) * limb * 1.45;
+                // Highlight bottom-right bright lunar sea area matching reference
+                float brightSpot = smoothstep(0.42, 0.92, vUv.x) * smoothstep(0.15, 0.65, 1.0 - vUv.y);
+                vec3 col = glowCore + fieryRim + vec3(1.0, 0.55, 0.58) * brightSpot * 0.42;
+                gl_FragColor = vec4(col, 1.0);
+              }
+            `
+          });
+          this.moonMesh = new THREE.Mesh(moonGeo, moonMat);
+          this.moonMesh.position.copy(moonPos);
+          this.moonMesh.rotation.y = -0.7;
+          this.scene.add(this.moonMesh);
+
+          // 4. Layered Volumetric Crimson Halo behind the Moon
+          const haloGeo = new THREE.PlaneGeometry(54, 54);
+          const haloMat = new THREE.ShaderMaterial({
+            transparent: true,
+            depthWrite: false,
+            fog: false,
+            blending: THREE.AdditiveBlending,
+            uniforms: { uTime: this.sharedUniforms.uTime },
+            vertexShader: `
+              varying vec2 vUv;
+              void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+              }
+            `,
+            fragmentShader: `
+              uniform float uTime;
+              varying vec2 vUv;
+              void main() {
+                float d = length(vUv - 0.5) * 2.0;
+                float halo = exp(-d * 3.1) * 0.85 + exp(-d * 6.5) * 0.45;
+                float breathe = 0.95 + 0.05 * sin(uTime * 0.55);
+                vec3 col = mix(vec3(0.88, 0.06, 0.16), vec3(1.0, 0.42, 0.45), exp(-d * 4.5));
+                gl_FragColor = vec4(col * halo * breathe, clamp(halo, 0.0, 1.0));
+              }
+            `
+          });
+          const haloMesh = new THREE.Mesh(haloGeo, haloMat);
+          haloMesh.position.set(moonPos.x, moonPos.y, moonPos.z - 2.5);
+          this.scene.add(haloMesh);
+        }
+
+        /* ---------------------------------------------------------------------
+           ANIMATED STORM CLOUDS (CRIMSON MOON-RIMMED BILLOWING DECK)
+           --------------------------------------------------------------------- */
+        buildStormClouds() {
+          this.cloudTex = createCloudTexture();
+          const cloudGeo = new THREE.PlaneGeometry(1, 1);
+
+          // Custom shader gives each cloud dark obsidian interiors & luminous crimson moonlit edges
+          const createCloudMat = (opacity, rimStrength) => new THREE.ShaderMaterial({
+            transparent: true,
+            depthWrite: false,
+            fog: false,
+            uniforms: {
+              uMap: { value: this.cloudTex },
+              uOpacity: { value: opacity },
+              uRimStrength: { value: rimStrength },
+              uMoonPos: { value: this.moonPosition }
+            },
+            vertexShader: `
+              varying vec2 vUv;
+              varying vec3 vWorldPos;
+              void main() {
+                vUv = uv;
+                vec4 wp = modelMatrix * vec4(position, 1.0);
+                vWorldPos = wp.xyz;
+                gl_Position = projectionMatrix * viewMatrix * wp;
+              }
+            `,
+            fragmentShader: `
+              uniform sampler2D uMap;
+              uniform float uOpacity;
+              uniform float uRimStrength;
+              uniform vec3 uMoonPos;
+              varying vec2 vUv;
+              varying vec3 vWorldPos;
+              void main() {
+                vec4 tex = texture2D(uMap, vUv);
+                if (tex.a < 0.01) discard;
+
+                // Distance to moon drives crimson edge silver-lining
+                float distToMoon = length(vWorldPos.xy - uMoonPos.xy);
+                float moonProx = exp(-distToMoon * 0.058);
+
+                // Cloud edges (lower alpha, brighter texture ridge) catch crimson moonlight
+                float edgeMask = smoothstep(0.12, 0.65, tex.r) * (1.0 - smoothstep(0.55, 0.96, tex.a));
+                vec3 darkBody = vec3(0.045, 0.02, 0.036);
+                vec3 midCloud = vec3(0.14, 0.045, 0.075);
+                vec3 crimsonRim = vec3(0.98, 0.22, 0.34);
+
+                vec3 col = mix(darkBody, midCloud, tex.r * 0.72);
+                col += crimsonRim * (edgeMask * 0.95 + tex.r * 0.38) * moonProx * uRimStrength;
+
+                gl_FragColor = vec4(col, tex.a * uOpacity);
+              }
+            `
+          });
+
+          const group = new THREE.Group();
+          for (let i = 0; i < QUALITY.cloudCount; i++) {
+            const isFrontMoon = i < 12; // Some dramatic clouds slowly cross the moon's lower/right rim
+            const x = isFrontMoon ? randRange(-18, 38) : randRange(-65, 65);
+            const y = isFrontMoon ? randRange(7, 22) : randRange(4, 28);
+            const z = isFrontMoon ? randRange(-69, -62) : randRange(-98, -83);
+            const scaleW = randRange(18, 42);
+            const scaleH = scaleW * randRange(0.48, 0.72);
+
+            const mat = createCloudMat(isFrontMoon ? randRange(0.45, 0.78) : randRange(0.55, 0.85), isFrontMoon ? 1.35 : 0.95);
+            const mesh = new THREE.Mesh(cloudGeo, mat);
+            mesh.position.set(x, y, z);
+            mesh.scale.set(scaleW, scaleH, 1);
+            mesh.rotation.z = randRange(-0.18, 0.18);
+            group.add(mesh);
+
+            this.stormClouds.push({
+              mesh,
+              baseX: x,
+              baseY: y,
+              speed: randRange(0.28, 0.85) * (isFrontMoon ? 1.15 : 0.75),
+              bobPhase: randRange(0, 6.28),
+              wrapHalfWidth: 74
+            });
+          }
+          this.scene.add(group);
+        }
+
+        /* ---------------------------------------------------------------------
+           MULTI-LAYERED MOUNTAINS, VOLCANIC CLIFFS & ROCKY SHORELINE
+           --------------------------------------------------------------------- */
+        buildTerrainAndMountains() {
+          const rockMat = new THREE.MeshStandardMaterial({
+            color: 0x160b10,
+            roughness: 0.92,
+            metalness: 0.08,
+            flatShading: true
+          });
+
+          // Helper to sculpt craggy organic rocks/cliffs by perturbing icosahedron/plane vertices
+          const createCliffMass = (rx, ry, rz, px, py, pz, detail = 3) => {
+            const geo = new THREE.IcosahedronGeometry(1, detail);
+            const pos = geo.attributes.position;
+            for (let i = 0; i < pos.count; i++) {
+              const vx = pos.getX(i);
+              const vy = pos.getY(i);
+              const vz = pos.getZ(i);
+              const n = fbm2(vx * 2.4 + px * 0.1, vz * 2.4 + vy * 1.8, 3);
+              const factor = 0.74 + n * 0.56;
+              pos.setXYZ(i, vx * rx * factor, vy * ry * factor, vz * rz * factor);
+            }
+            geo.computeVertexNormals();
+            const mesh = new THREE.Mesh(geo, rockMat);
+            mesh.position.set(px, py, pz);
+            mesh.receiveShadow = true;
+            return mesh;
+          };
+
+          // Left-Midground Mountain Slope (supports giant tree & pagoda complex)
+          this.scene.add(createCliffMass(13, 6.2, 11, -13.5, 0.2, -11, 3));
+          this.scene.add(createCliffMass(10, 4.5, 8.5, -15.5, -0.5, 3.2, 3));
+          this.scene.add(createCliffMass(9, 3.8, 7.5, -6.2, -1.2, -13.5, 3));
+
+          // Center-Right Torii Terrace & Rocky Outcrops
+          this.scene.add(createCliffMass(7.5, 2.8, 6.5, -0.8, -1.7, -15.5, 3));
+          this.scene.add(createCliffMass(6.5, 3.4, 6.0, 6.4, -1.4, -22, 3));
+
+          // Right Gorge Cliffs Framing the Waterfall
+          this.scene.add(createCliffMass(11, 9.5, 9, 18.5, 4.5, -36, 3));
+          this.scene.add(createCliffMass(9, 7.5, 8, 6.8, 2.2, -39, 3));
+          this.scene.add(createCliffMass(12, 8.5, 10, 24.5, 2.5, -22, 3));
+
+          // Distant Atmospheric Mountain Silhouettes (3 layered ridges for true parallax)
+          const createMountainRidge = (zPos, heightScale, width, colorHex, seedShift) => {
+            const segX = 72, segZ = 8;
+            const geo = new THREE.PlaneGeometry(width, 28, segX, segZ);
+            geo.rotateX(-Math.PI / 2);
+            const pos = geo.attributes.position;
+            for (let i = 0; i < pos.count; i++) {
+              const x = pos.getX(i);
+              const z = pos.getZ(i);
+              const normX = (x / width) + 0.5;
+              const edgeFade = Math.sin(normX * Math.PI);
+              // Valley dip near center so moon & torii breathe cleanly
+              const valley = 1.0 - 0.58 * Math.exp(-Math.pow((x - 1.5) / 22, 2));
+              const ridge = fbm2(x * 0.055 + seedShift, z * 0.08 + seedShift, 4);
+              const crag = Math.pow(ridge, 1.5) * heightScale * edgeFade * valley;
+              const zFade = 1.0 - Math.abs(z) / 14.5;
+              pos.setY(i, crag * Math.max(0, zFade) - 2.5);
+            }
+            geo.computeVertexNormals();
+            const mat = new THREE.MeshStandardMaterial({
+              color: colorHex,
+              roughness: 0.96,
+              metalness: 0.04,
+              flatShading: true
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(0, -1.0, zPos);
+            this.scene.add(mesh);
+          };
+
+          createMountainRidge(-56, 22, 160, 0x16080f, 1.7);
+          createMountainRidge(-88, 34, 210, 0x11050b, 8.3);
+          createMountainRidge(-125, 46, 270, 0x0b0308, 15.9);
+        }
+
+        /* ---------------------------------------------------------------------
+           1. THE GIANT BLOSSOM TREE — MAIN VISUAL CENTERPIECE
+           Organically sculpted trunk, hundreds of branching boughs & twigs,
+           and thousands of GPU-instanced wind-reactive crimson blossoms.
+           --------------------------------------------------------------------- */
+        buildGiantBlossomTree() {
+          const branchGeoms = [];
+          const blossomAnchors = []; // Collected along branches & twigs for volumetric canopy
+          this.petalSpawnPoints = []; // Used by the falling petal system
+
+          /**
+           * Generates a custom tapered organic tube along a CatmullRomCurve3
+           * with bark gnarling, root flare, and per-vertex GPU wind-sway weights.
+           */
+          const buildOrganicBranchTube = (points, rStart, rEnd, tubularSegs, radialSegs, windStart, windEnd) => {
+            const curve = new THREE.CatmullRomCurve3(points);
+            const frames = curve.computeFrenetFrames(tubularSegs, false);
+
+            const verts = [];
+            const norms = [];
+            const uvs = [];
+            const winds = [];
+            const indices = [];
+
+            for (let i = 0; i <= tubularSegs; i++) {
+              const t = i / tubularSegs;
+              const p = curve.getPointAt(t);
+              const N = frames.normals[i];
+              const B = frames.binormals[i];
+              const radius = rStart + (rEnd - rStart) * Math.pow(t, 0.85);
+              const windW = windStart + (windEnd - windStart) * t;
+
+              for (let j = 0; j <= radialSegs; j++) {
+                const u = j / radialSegs;
+                const theta = u * Math.PI * 2;
+                // Organic bark fluting & root-flare gnarl near trunk base
+                const fluting = 1.0 + 0.14 * Math.sin(theta * 5.0 + t * 9.0) * (1.0 - t * 0.5);
+                const r = radius * fluting;
+
+                const cos = Math.cos(theta);
+                const sin = Math.sin(theta);
+
+                const nx = cos * N.x + sin * B.x;
+                const ny = cos * N.y + sin * B.y;
+                const nz = cos * N.z + sin * B.z;
+
+                verts.push(p.x + r * nx, p.y + r * ny, p.z + r * nz);
+                norms.push(nx, ny, nz);
+                uvs.push(u * 2.0, t * 4.0);
+                winds.push(windW);
+              }
+            }
+
+            const stride = radialSegs + 1;
+            for (let i = 0; i < tubularSegs; i++) {
+              for (let j = 0; j < radialSegs; j++) {
+                const a = i * stride + j;
+                const b = (i + 1) * stride + j;
+                const c = (i + 1) * stride + (j + 1);
+                const d = i * stride + (j + 1);
+                indices.push(a, b, d, b, c, d);
+              }
+            }
+
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+            geo.setAttribute('normal', new THREE.Float32BufferAttribute(norms, 3));
+            geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+            geo.setAttribute('aWindWeight', new THREE.Float32BufferAttribute(winds, 1));
+            geo.setIndex(indices);
+            branchGeoms.push(geo);
+          };
+
+          /**
+           * Recursive organic branching algorithm creating twisting sakura limbs,
+           * gnarled elbows, fine twigs, and volumetric blossom anchor zones.
+           */
+          const growBranch = (origin, dir, length, radius, depth, maxDepth, windBase) => {
+            const p0 = origin.clone();
+            const d1 = dir.clone().normalize();
+
+            // Natural Japanese sakura sweeping curve with slight gravity & gnarl
+            const mid1 = p0.clone().addScaledVector(d1, length * 0.38);
+            mid1.x += randRange(-0.45, 0.55) * (length * 0.2);
+            mid1.y += randRange(-0.22, 0.32) * (length * 0.22);
+            mid1.z += randRange(-0.35, 0.35) * (length * 0.2);
+
+            const d2 = d1.clone();
+            d2.y += randRange(-0.18, 0.22);
+            d2.x += randRange(-0.12, 0.28);
+            d2.normalize();
+
+            const mid2 = mid1.clone().addScaledVector(d2, length * 0.35);
+            const end = mid2.clone().addScaledVector(d2, length * 0.32);
+            end.y += randRange(-0.3, 0.2);
+
+            const windEnd = Math.min(1.0, windBase + 0.16 + (depth / maxDepth) * 0.14);
+            const rEnd = Math.max(0.032, radius * randRange(0.56, 0.68));
+            const tubSegs = depth <= 1 ? 10 : (depth <= 2 ? 7 : 4);
+            const radSegs = depth <= 1 ? 8 : (depth <= 2 ? 6 : 4);
+
+            buildOrganicBranchTube([p0, mid1, mid2, end], radius, rEnd, tubSegs, radSegs, windBase, windEnd);
+
+            // Populate blossom clusters along outer limbs & fine twigs
+            if (depth >= 2) {
+              const samples = depth === maxDepth ? 8 : 4;
+              for (let s = 0; s < samples; s++) {
+                const frac = s / samples;
+                const pos = new THREE.Vector3().lerpVectors(mid1, end, frac);
+                blossomAnchors.push({
+                  pos,
+                  wind: windBase + (windEnd - windBase) * frac,
+                  spread: depth === maxDepth ? 1.55 : 1.15,
+                  density: depth === maxDepth ? 1.0 : 0.7
+                });
+              }
+              if (depth >= maxDepth - 1) {
+                this.petalSpawnPoints.push(end.clone());
+              }
+            }
+
+            if (depth >= maxDepth) return;
+
+            // Spawn organic child limbs
+            const children = depth === 1 ? 3 : (depth === 2 ? 3 : 2);
+            for (let c = 0; c < children; c++) {
+              const attachT = randRange(0.45, 0.98);
+              const startPos = new THREE.Vector3().lerpVectors(mid1, end, attachT);
+              const childDir = d2.clone();
+              // Fan branches gracefully outward in 3D space
+              const yaw = (c - (children - 1) * 0.5) * randRange(0.65, 1.05) + randRange(-0.25, 0.25);
+              const pitch = randRange(-0.28, 0.38);
+              childDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+              childDir.y += pitch;
+              childDir.normalize();
+
+              const childLen = length * randRange(0.62, 0.80);
+              const childRad = rEnd * randRange(0.75, 0.92);
+              growBranch(startPos, childDir, childLen, childRad, depth + 1, maxDepth, windBase + (windEnd - windBase) * attachT);
+            }
+          };
+
+          // --- A. MASSIVE SCULPTED MAIN TRUNK (GRIPPING THE LEFT CLIFFSIDE) ---
+          const mainTrunkPts = [
+            new THREE.Vector3(-16.8, -2.5, 4.2),
+            new THREE.Vector3(-15.2, 1.4, 4.6),
+            new THREE.Vector3(-13.6, 5.2, 5.0),
+            new THREE.Vector3(-11.4, 8.8, 4.4),
+            new THREE.Vector3(-8.4, 11.4, 3.6),
+            new THREE.Vector3(-4.2, 12.8, 2.4)
+          ];
+          buildOrganicBranchTube(mainTrunkPts, 1.85, 0.58, 18, 12, 0.0, 0.22);
+
+          // Exposed gnarled surface roots gripping the dark rocks
+          const rootDefs = [
+            [new THREE.Vector3(-16.2, -0.2, 4.4), new THREE.Vector3(-14.6, -1.6, 6.2), new THREE.Vector3(-12.8, -2.8, 7.6)],
+            [new THREE.Vector3(-16.5, 0.2, 3.8), new THREE.Vector3(-18.2, -1.4, 5.6), new THREE.Vector3(-19.5, -2.9, 6.8)],
+            [new THREE.Vector3(-15.8, -0.4, 3.6), new THREE.Vector3(-13.8, -1.8, 2.2), new THREE.Vector3(-11.8, -2.8, 0.8)]
+          ];
+          for (const rPts of rootDefs) {
+            buildOrganicBranchTube(rPts, 0.72, 0.16, 8, 7, 0.0, 0.0);
+          }
+
+          // --- B. HERO SWEEPING PRIMARY BOUGHS ARCHING ACROSS THE NIGHT SKY ---
+          const primaryBoughs = [
+            // Hero sweeping upper-center limb reaching gracefully toward the blood moon
+            { start: new THREE.Vector3(-8.6, 11.2, 3.7), dir: new THREE.Vector3(0.92, 0.16, -0.22), len: 6.4, rad: 0.48, wind: 0.22 },
+            // High crown limb fanning across upper-left
+            { start: new THREE.Vector3(-11.0, 9.2, 4.2), dir: new THREE.Vector3(0.55, 0.68, 0.12), len: 6.2, rad: 0.52, wind: 0.18 },
+            // Foreground dramatic canopy bough closer to camera for rich parallax
+            { start: new THREE.Vector3(-12.4, 7.8, 4.9), dir: new THREE.Vector3(0.76, 0.36, 0.54), len: 5.6, rad: 0.44, wind: 0.20 },
+            // Lower weeping limb hovering over the pagoda roof
+            { start: new THREE.Vector3(-11.8, 7.6, 3.8), dir: new THREE.Vector3(0.84, -0.14, -0.48), len: 5.4, rad: 0.36, wind: 0.19 },
+            // Far left overarching canopy limb
+            { start: new THREE.Vector3(-13.4, 6.4, 4.8), dir: new THREE.Vector3(-0.68, 0.62, 0.22), len: 5.8, rad: 0.46, wind: 0.16 },
+            // Reaching tip extension toward moon halo
+            { start: new THREE.Vector3(-4.4, 12.7, 2.5), dir: new THREE.Vector3(0.95, -0.08, -0.15), len: 5.6, rad: 0.38, wind: 0.26 },
+            // Upper-center crown fullness
+            { start: new THREE.Vector3(-6.2, 12.2, 3.0), dir: new THREE.Vector3(0.35, 0.72, 0.32), len: 4.8, rad: 0.34, wind: 0.24 }
+          ];
+
+          for (const b of primaryBoughs) {
+            growBranch(b.start, b.dir, b.len, b.rad, 1, QUALITY.treeBranchDepth, b.wind);
+          }
+
+          // --- C. RIGHT-SIDE FRAMING SAKURA BOUGH (PEEKING BEHIND AUTH CARD) ---
+          const rightBoughPts = [
+            new THREE.Vector3(16.8, 8.8, 8.6),
+            new THREE.Vector3(13.6, 9.4, 8.2),
+            new THREE.Vector3(10.8, 9.2, 7.6),
+            new THREE.Vector3(8.4, 8.4, 7.1)
+          ];
+          buildOrganicBranchTube(rightBoughPts, 0.32, 0.08, 10, 6, 0.08, 0.42);
+          growBranch(new THREE.Vector3(11.6, 9.2, 7.8), new THREE.Vector3(-0.85, 0.22, -0.18), 3.4, 0.16, 2, QUALITY.treeBranchDepth, 0.28);
+          growBranch(new THREE.Vector3(13.2, 9.4, 8.1), new THREE.Vector3(-0.72, -0.35, 0.15), 2.9, 0.14, 2, QUALITY.treeBranchDepth, 0.24);
+
+          // --- D. MERGE ALL WOOD GEOMETRY INTO ONE GPU-WIND-ANIMATED DRAW CALL ---
+          const mergedWoodGeo = mergeBufferGeometries(branchGeoms);
+          const barkTex = createBarkTexture();
+
+          const barkMat = new THREE.ShaderMaterial({
+            uniforms: {
+              uMap: { value: barkTex },
+              uTime: this.sharedUniforms.uTime,
+              uWindStrength: this.sharedUniforms.uWindStrength,
+              uWindDir: this.sharedUniforms.uWindDir,
+              uMoonDir: this.sharedUniforms.uMoonDir,
+              uGustImpulse: this.sharedUniforms.uGustImpulse
+            },
+            vertexShader: `
+              attribute float aWindWeight;
+              uniform float uTime;
+              uniform float uWindStrength;
+              uniform vec2 uWindDir;
+              uniform float uGustImpulse;
+              varying vec2 vUv;
+              varying vec3 vNormal;
+              varying vec3 vWorldPos;
+
+              void main() {
+                vUv = uv;
+                vec3 pos = position;
+
+                // Layered non-mechanical wind sway field shared with blossom foliage
+                float gust = uWindStrength + uGustImpulse * 1.4;
+                float sway1 = sin(uTime * 0.85 + pos.x * 0.22 + pos.z * 0.18);
+                float sway2 = cos(uTime * 1.45 + pos.y * 0.31 - pos.x * 0.14) * 0.45;
+                float bend = (sway1 + sway2) * gust * pow(aWindWeight, 1.35) * 0.46;
+
+                pos.x += bend * uWindDir.x;
+                pos.z += bend * uWindDir.y;
+                pos.y += sin(uTime * 1.15 + pos.x * 0.3) * gust * pow(aWindWeight, 1.5) * 0.14;
+
+                vec4 wp = modelMatrix * vec4(pos, 1.0);
+                vWorldPos = wp.xyz;
+                vNormal = normalize(mat3(modelMatrix) * normal);
+                gl_Position = projectionMatrix * viewMatrix * wp;
+              }
+            `,
+            fragmentShader: `
+              uniform sampler2D uMap;
+              uniform vec3 uMoonDir;
+              varying vec2 vUv;
+              varying vec3 vNormal;
+              varying vec3 vWorldPos;
+
+              void main() {
+                vec3 bark = texture2D(uMap, vUv).rgb;
+                vec3 N = normalize(vNormal);
+                vec3 V = normalize(cameraPosition - vWorldPos);
+                vec3 L = normalize(uMoonDir);
+
+                // Dark textured obsidian-mahogany wood base
+                float diff = max(0.0, dot(N, L));
+                // Strong crimson rim light catching gnarled silhouettes from the blood moon
+                float fresnel = pow(1.0 - max(0.0, dot(N, V)), 3.0);
+                // Warm under-glow bounced from pagoda & crimson lanterns
+                float underGlow = max(0.0, -N.y) * smoothstep(14.0, 2.0, vWorldPos.y);
+
+                vec3 col = bark * 0.55;
+                col += bark * vec3(1.1, 0.22, 0.30) * diff * 0.95;
+                col += vec3(0.95, 0.14, 0.26) * fresnel * 0.65;
+                col += vec3(0.85, 0.12, 0.18) * underGlow * 0.48;
+
+                gl_FragColor = vec4(col, 1.0);
+              }
+            `
+          });
+
+          this.treeWoodMesh = new THREE.Mesh(mergedWoodGeo, barkMat);
+          this.scene.add(this.treeWoodMesh);
+
+          // --- E. THOUSANDS OF GPU-INSTANCED VOLUMETRIC CRIMSON BLOSSOM CLUSTERS ---
+          this.buildBlossomCanopy(blossomAnchors);
+        }
+
+        buildBlossomCanopy(anchors) {
+          const blossomTex = createBlossomClusterTexture();
+
+          // Build a 3D crossed-cupped sprig geometry (2 angled planes = true 3D volume from any angle)
+          const p1 = new THREE.PlaneGeometry(1.15, 1.15);
+          const p2 = new THREE.PlaneGeometry(1.15, 1.15);
+          p2.rotateY(Math.PI * 0.48);
+          p2.rotateX(0.32);
+          const clusterGeo = mergeBufferGeometries([p1, p2]);
+
+          const count = QUALITY.blossomClusters;
+          const aColor = new Float32Array(count * 3);
+          const aPhase = new Float32Array(count);
+          const aWind = new Float32Array(count);
+
+          const palette = [
+            new THREE.Color(0x6e0418), // Deep shadow velvet crimson
+            new THREE.Color(0xb80826), // Classic rich crimson blossom
+            new THREE.Color(0xe81636), // Vibrant blood-sakura
+            new THREE.Color(0xff2e4c), // Luminous sunlit scarlet
+            new THREE.Color(0xff6b82)  // Moonlit petal tips
+          ];
+
+          const dummy = new THREE.Object3D();
+          const blossomMat = new THREE.ShaderMaterial({
+            transparent: true,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+            uniforms: {
+              uMap: { value: blossomTex },
+              uTime: this.sharedUniforms.uTime,
+              uWindStrength: this.sharedUniforms.uWindStrength,
+              uWindDir: this.sharedUniforms.uWindDir,
+              uGustImpulse: this.sharedUniforms.uGustImpulse,
+              uMoonDir: this.sharedUniforms.uMoonDir
+            },
+            vertexShader: `
+              attribute vec3 aColor;
+              attribute float aPhase;
+              attribute float aWind;
+
+              uniform float uTime;
+              uniform float uWindStrength;
+              uniform vec2 uWindDir;
+              uniform float uGustImpulse;
+
+              varying vec2 vUv;
+              varying vec3 vColor;
+              varying vec3 vWorldPos;
+              varying float vBacklight;
+
+              void main() {
+                vUv = uv;
+                vColor = aColor;
+
+                // Transform local vertex by per-instance matrix (automatically provided by Three.js InstancedMesh)
+                vec4 worldPos = modelMatrix * instanceMatrix * vec4(position, 1.0);
+
+                // 1. Macro branch sway matching the tree skeleton exactly
+                float gust = uWindStrength + uGustImpulse * 1.45;
+                float sway1 = sin(uTime * 0.85 + worldPos.x * 0.22 + worldPos.z * 0.18);
+                float sway2 = cos(uTime * 1.45 + worldPos.y * 0.31 - worldPos.x * 0.14) * 0.45;
+                float macroBend = (sway1 + sway2) * gust * pow(aWind, 1.35) * 0.46;
+
+                // 2. Independent micro cluster flutter (wind-reactive foliage life)
+                float flutter = sin(uTime * 3.1 + aPhase + position.x * 2.5) * (0.08 + gust * 0.16) * aWind;
+                float lift = cos(uTime * 2.4 + aPhase * 1.3) * (0.05 + gust * 0.10) * aWind;
+
+                worldPos.x += macroBend * uWindDir.x + flutter;
+                worldPos.z += macroBend * uWindDir.y + flutter * 0.65;
+                worldPos.y += lift;
+
+                vWorldPos = worldPos.xyz;
+
+                // Approximate moonlight translucency: upper & moon-facing canopy tips glow ruby-bright
+                float moonProx = smoothstep(-14.0, 5.0, worldPos.x) * smoothstep(5.5, 16.0, worldPos.y);
+                vBacklight = clamp(0.28 + moonProx * 0.92, 0.0, 1.25);
+
+                gl_Position = projectionMatrix * viewMatrix * worldPos;
+              }
+            `,
+            fragmentShader: `
+              uniform sampler2D uMap;
+              varying vec2 vUv;
+              varying vec3 vColor;
+              varying vec3 vWorldPos;
+              varying float vBacklight;
+
+              void main() {
+                vec4 tex = texture2D(uMap, vUv);
+                if (tex.a < 0.22) discard;
+
+                // Subsurface crimson scattering from the blood moon
+                vec3 lit = tex.rgb * vColor * (0.95 + vBacklight * 0.82);
+                lit += vec3(1.0, 0.24, 0.36) * pow(tex.r, 2.0) * vBacklight * 0.38;
+
+                // Subtle depth-based atmospheric mist blend
+                float dist = length(cameraPosition - vWorldPos);
+                float fogAmt = 1.0 - exp(-pow(dist * 0.011, 2.0));
+                vec3 col = mix(lit, vec3(0.09, 0.015, 0.035), clamp(fogAmt * 0.65, 0.0, 0.72));
+
+                gl_FragColor = vec4(col, tex.a * 0.94);
+              }
+            `
+          });
+
+          const instMesh = new THREE.InstancedMesh(clusterGeo, blossomMat, count);
+          instMesh.frustumCulled = false;
+
+          for (let i = 0; i < count; i++) {
+            const anchor = anchors[Math.floor(rand() * anchors.length)];
+            // Spherical volumetric cloud around each branch anchor
+            const theta = randRange(0, Math.PI * 2);
+            const phi = Math.acos(randRange(-1, 1));
+            const r = Math.pow(rand(), 0.58) * anchor.spread * 1.45;
+
+            const px = anchor.pos.x + Math.sin(phi) * Math.cos(theta) * r;
+            const py = anchor.pos.y + Math.cos(phi) * r * 0.78 + 0.2;
+            const pz = anchor.pos.z + Math.sin(phi) * Math.sin(theta) * r;
+
+            dummy.position.set(px, py, pz);
+            dummy.rotation.set(randRange(-0.9, 0.9), randRange(0, Math.PI * 2), randRange(-0.9, 0.9));
+            // Varied blossom cluster sizes for rich canopy depth
+            const scale = randRange(0.62, 1.65);
+            dummy.scale.setScalar(scale);
+            dummy.updateMatrix();
+            instMesh.setMatrixAt(i, dummy.matrix);
+
+            // Height & moon-side bias makes crown tips brighter crimson and underside richer shadow maroon
+            const brightBias = Math.max(0, Math.min(1, (py - 6.0) / 10.5 + (px + 14) / 28 * 0.4 + randRange(-0.25, 0.25)));
+            const palIdx = Math.min(palette.length - 1, Math.floor(brightBias * palette.length));
+            const col = palette[palIdx];
+            aColor[i * 3] = col.r;
+            aColor[i * 3 + 1] = col.g;
+            aColor[i * 3 + 2] = col.b;
+            aPhase[i] = randRange(0, Math.PI * 2);
+            aWind[i] = anchor.wind;
+          }
+
+          clusterGeo.setAttribute('aColor', new THREE.InstancedBufferAttribute(aColor, 3));
+          clusterGeo.setAttribute('aPhase', new THREE.InstancedBufferAttribute(aPhase, 1));
+          clusterGeo.setAttribute('aWind', new THREE.InstancedBufferAttribute(aWind, 1));
+          instMesh.instanceMatrix.needsUpdate = true;
+
+          this.blossomMesh = instMesh;
+          this.scene.add(instMesh);
+        }
+
+        /* ---------------------------------------------------------------------
+           JAPANESE PAGODA & SHRINE COMPLEX ON THE LEFT CLIFFSIDE
+           --------------------------------------------------------------------- */
+        buildJapanesePagodaAndShrine() {
+          const pagodaGroup = new THREE.Group();
+          const darkRoofMat = new THREE.MeshStandardMaterial({
+            color: 0x160c12,
+            roughness: 0.72,
+            metalness: 0.22,
+            flatShading: true
+          });
+          const woodMat = new THREE.MeshStandardMaterial({
+            color: 0x1c0a0e,
+            roughness: 0.85
+          });
+          const shojiTex = createShojiTexture();
+          const shojiMat = new THREE.MeshBasicMaterial({
+            map: shojiTex,
+            color: 0xff4254
+          });
+
+          /**
+           * Builds a traditional curved Japanese roof tier with flared corner eaves (sori).
+           */
+          const createPagodaRoof = (width, height) => {
+            const geo = new THREE.ConeGeometry(width * 0.82, height, 4, 3);
+            geo.rotateY(Math.PI / 4);
+            const pos = geo.attributes.position;
+            for (let i = 0; i < pos.count; i++) {
+              const x = pos.getX(i);
+              const y = pos.getY(i);
+              const z = pos.getZ(i);
+              const dist = Math.sqrt(x * x + z * z) / (width * 0.82);
+              // Swept upward eave curve
+              const curveUp = Math.pow(dist, 2.2) * height * 0.42;
+              const flare = 1.0 + Math.pow(dist, 2.0) * 0.24;
+              pos.setXYZ(i, x * flare, y + curveUp, z * flare);
+            }
+            geo.computeVertexNormals();
+            return new THREE.Mesh(geo, darkRoofMat);
+          };
+
+          // Build 3-Tiered Main Pagoda
+          const buildPagodaTower = (scale = 1.0) => {
+            const tower = new THREE.Group();
+            // Stone base platform
+            const base = new THREE.Mesh(new THREE.BoxGeometry(4.4, 1.3, 4.4), woodMat);
+            base.position.y = 0.65;
+            tower.add(base);
+
+            let yCursor = 1.3;
+            const tiers = [
+              { w: 3.6, h: 1.55, roofW: 5.2, roofH: 1.05 },
+              { w: 2.9, h: 1.32, roofW: 4.3, roofH: 0.95 },
+              { w: 2.2, h: 1.10, roofW: 3.5, roofH: 0.90 }
+            ];
+
+            for (const t of tiers) {
+              // Glowing interior shoji core
+              const body = new THREE.Mesh(new THREE.BoxGeometry(t.w, t.h, t.w), shojiMat);
+              body.position.y = yCursor + t.h * 0.5;
+              tower.add(body);
+
+              // Timber corner pillars
+              const half = t.w * 0.51;
+              for (const sx of [-1, 1]) {
+                for (const sz of [-1, 1]) {
+                  const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.18, t.h + 0.1, 0.18), woodMat);
+                  pillar.position.set(sx * half, yCursor + t.h * 0.5, sz * half);
+                  tower.add(pillar);
+                }
+              }
+
+              // Swept curved roof
+              const roof = createPagodaRoof(t.roofW, t.roofH);
+              roof.position.y = yCursor + t.h + t.roofH * 0.34;
+              tower.add(roof);
+
+              yCursor += t.h + t.roofH * 0.52;
+            }
+
+            // Ornamental bronze spire (Sorin)
+            const spire = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.12, 1.85, 6), darkRoofMat);
+            spire.position.y = yCursor + 0.95;
+            tower.add(spire);
+
+            tower.scale.setScalar(scale);
+            return tower;
+          };
+
+          const mainPagoda = buildPagodaTower(1.12);
+          mainPagoda.position.set(-9.2, 2.5, -13.5);
+          mainPagoda.rotation.y = 0.28;
+          pagodaGroup.add(mainPagoda);
+
+          // Secondary lower shrine hall nestled down the slope toward the Torii
+          const subShrine = new THREE.Group();
+          const hallBody = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.35, 2.2), shojiMat);
+          hallBody.position.y = 0.68;
+          subShrine.add(hallBody);
+          const hallRoof = createPagodaRoof(4.0, 0.95);
+          hallRoof.position.y = 1.68;
+          subShrine.add(hallRoof);
+          subShrine.position.set(-4.8, 0.85, -15.2);
+          subShrine.rotation.y = 0.22;
+          pagodaGroup.add(subShrine);
+
+          // Warm crimson interior glow spilling onto cliffside and tree underside
+          const shrineLight = new THREE.PointLight(0xff263d, 3.8, 22, 1.7);
+          shrineLight.position.set(-8.6, 5.2, -11.5);
+          this.scene.add(shrineLight);
+          this.lanternLights.push({ light: shrineLight, baseIntensity: 3.8, phase: 0.7 });
+
+          this.scene.add(pagodaGroup);
+        }
+
+        /* ---------------------------------------------------------------------
+           TRADITIONAL CRIMSON TORII GATE, STONE STAIRWAY & HANGING LANTERNS
+           --------------------------------------------------------------------- */
+        buildToriiGateAndStairs() {
+          const group = new THREE.Group();
+          group.position.set(-0.6, 0.0, -15.5);
+          group.rotation.y = 0.14;
+
+          const vermilionMat = new THREE.MeshStandardMaterial({
+            color: 0xbf1126,
+            roughness: 0.48,
+            metalness: 0.14,
+            emissive: 0x350209,
+            emissiveIntensity: 0.45
+          });
+          const blackCapMat = new THREE.MeshStandardMaterial({
+            color: 0x11070b,
+            roughness: 0.65,
+            metalness: 0.2
+          });
+          const stoneMat = new THREE.MeshStandardMaterial({
+            color: 0x1d1217,
+            roughness: 0.92
+          });
+
+          // Two stately tapered Hashira pillars with stone bases (Kamebara)
+          const pillarGeo = new THREE.CylinderGeometry(0.24, 0.31, 6.2, 12);
+          const baseGeo = new THREE.CylinderGeometry(0.37, 0.44, 0.65, 10);
+          for (const side of [-1, 1]) {
+            const p = new THREE.Mesh(pillarGeo, vermilionMat);
+            p.position.set(side * 2.35, 3.1, 0);
+            p.rotation.z = side * 0.035; // Authentic subtle inward cant
+            group.add(p);
+
+            const b = new THREE.Mesh(baseGeo, blackCapMat);
+            b.position.set(side * 2.45, 0.32, 0);
+            group.add(b);
+          }
+
+          // Lower tie beam (Nuki) + side wedges
+          const nuki = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.34, 0.28), vermilionMat);
+          nuki.position.set(0, 4.95, 0);
+          group.add(nuki);
+
+          // Central name tablet (Gakuzuka)
+          const tablet = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.85, 0.18), blackCapMat);
+          tablet.position.set(0, 5.45, 0.05);
+          group.add(tablet);
+
+          // Curved Upper Lintel (Kasagi + Shimaki)
+          const kasagiCurvePts = [];
+          for (let i = -8; i <= 8; i++) {
+            const t = i / 8;
+            const x = t * 3.95;
+            const y = 6.08 + Math.pow(Math.abs(t), 2.3) * 0.62;
+            kasagiCurvePts.push(new THREE.Vector3(x, y, 0));
+          }
+          const kasagiCurve = new THREE.CatmullRomCurve3(kasagiCurvePts);
+          const kasagiGeo = new THREE.TubeGeometry(kasagiCurve, 24, 0.24, 8, false);
+          kasagiGeo.scale(1, 0.88, 1.35);
+          group.add(new THREE.Mesh(kasagiGeo, vermilionMat));
+
+          const capGeo = new THREE.TubeGeometry(kasagiCurve, 24, 0.20, 8, false);
+          capGeo.scale(1.03, 0.55, 1.55);
+          const cap = new THREE.Mesh(capGeo, blackCapMat);
+          cap.position.y = 0.22;
+          group.add(cap);
+
+          // 3 Glowing Hanging Chochin Lanterns swaying beneath the Nuki beam
+          const lanternGlowMat = new THREE.MeshBasicMaterial({ color: 0xff4656 });
+          const lanternPositions = [-1.45, 0, 1.45];
+          for (let i = 0; i < lanternPositions.length; i++) {
+            const pivot = new THREE.Group();
+            pivot.position.set(lanternPositions[i], 4.82, 0.12);
+
+            const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.45, 4), blackCapMat);
+            cord.position.y = -0.22;
+            pivot.add(cord);
+
+            const body = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 10), lanternGlowMat);
+            body.scale.set(0.85, 1.35, 0.85);
+            body.position.y = -0.62;
+            pivot.add(body);
+
+            const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.08, 8), blackCapMat);
+            lid.position.y = -0.35;
+            pivot.add(lid);
+
+            group.add(pivot);
+            this.hangingLanterns.push({ pivot, phase: i * 1.9 + 0.4 });
+          }
+
+          // Central warm crimson Torii lantern light
+          const toriiLight = new THREE.PointLight(0xff2c42, 4.2, 18, 1.6);
+          toriiLight.position.set(0, 4.1, 0.8);
+          group.add(toriiLight);
+          this.lanternLights.push({ light: toriiLight, baseIntensity: 4.2, phase: 2.1 });
+
+          // Broad Stone Stairway descending from the Torii down to the lake
+          const stepCount = 12;
+          for (let s = 0; s < stepCount; s++) {
+            const w = 5.6 + s * 0.22;
+            const step = new THREE.Mesh(new THREE.BoxGeometry(w, 0.24, 0.62), stoneMat);
+            step.position.set(0, -0.15 - s * 0.16, 0.8 + s * 0.56);
+            group.add(step);
+          }
+
+          // Pathway Wooden Railings & Glowing Toro Pedestal Lanterns
+          const addPathLantern = (lx, ly, lz, intensity = 2.4) => {
+            const lGroup = new THREE.Group();
+            lGroup.position.set(lx, ly, lz);
+
+            const post = new THREE.Mesh(new THREE.BoxGeometry(0.22, 1.15, 0.22), blackCapMat);
+            post.position.y = 0.55;
+            lGroup.add(post);
+
+            const firebox = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.48, 0.38), lanternGlowMat);
+            firebox.position.y = 1.32;
+            lGroup.add(firebox);
+
+            const roof = new THREE.Mesh(new THREE.ConeGeometry(0.46, 0.28, 4), blackCapMat);
+            roof.rotation.y = Math.PI / 4;
+            roof.position.y = 1.7;
+            lGroup.add(roof);
+
+            group.add(lGroup);
+            const pt = new THREE.PointLight(0xff2e44, intensity, 11, 1.8);
+            pt.position.set(lx, ly + 1.35, lz + 0.2);
+            group.add(pt);
+            this.lanternLights.push({ light: pt, baseIntensity: intensity, phase: randRange(0, 6.28) });
+          };
+
+          addPathLantern(-3.4, -0.3, 1.6, 2.5);
+          addPathLantern(3.4, -0.3, 1.6, 2.5);
+          addPathLantern(-4.5, 0.3, -1.8, 2.1);
+          addPathLantern(5.2, -1.4, 5.2, 2.6);
+
+          this.scene.add(group);
+        }
+
+        /* ---------------------------------------------------------------------
+           FOREGROUND WOODEN PIER & HERO CRIMSON LANTERN (BOTTOM-LEFT)
+           --------------------------------------------------------------------- */
+        buildForegroundPierAndLantern() {
+          const pier = new THREE.Group();
+          pier.position.set(-7.6, -1.55, 10.6);
+          pier.rotation.y = 0.24;
+
+          const darkWood = new THREE.MeshStandardMaterial({
+            color: 0x160a0e,
+            roughness: 0.88
+          });
+          const rockMat = new THREE.MeshStandardMaterial({
+            color: 0x13080c,
+            roughness: 0.94,
+            flatShading: true
+          });
+
+          // Craggy shoreline boulders anchoring the pier
+          const rock1 = new THREE.Mesh(new THREE.DodecahedronGeometry(2.3, 1), rockMat);
+          rock1.scale.set(1.4, 0.55, 1.1);
+          rock1.position.set(-0.6, 0.1, 0.2);
+          pier.add(rock1);
+
+          // Wooden dock planks & railing posts extending right toward the reflective lake
+          for (let i = 0; i < 6; i++) {
+            const post = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.45, 0.18), darkWood);
+            post.position.set(-1.5 + i * 1.15, 0.65, -0.35);
+            pier.add(post);
+
+            const cap = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.08, 0.24), darkWood);
+            cap.position.set(-1.5 + i * 1.15, 1.38, -0.35);
+            pier.add(cap);
+          }
+          // Horizontal timber rails
+          const topRail = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.12, 0.14), darkWood);
+          topRail.position.set(1.35, 1.18, -0.35);
+          pier.add(topRail);
+
+          const midRail = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.10, 0.12), darkWood);
+          midRail.position.set(1.35, 0.72, -0.35);
+          pier.add(midRail);
+
+          // Ornate Hero Crimson Lantern glowing vibrantly on the foreground rock
+          const lantern = new THREE.Group();
+          lantern.position.set(-0.35, 0.72, 0.15);
+
+          const ped = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.32, 0.62), darkWood);
+          lantern.add(ped);
+
+          const shojiGlow = new THREE.Mesh(
+            new THREE.BoxGeometry(0.68, 0.88, 0.68),
+            new THREE.MeshBasicMaterial({ map: createShojiTexture(), color: 0xff5a66 })
+          );
+          shojiGlow.position.y = 0.62;
+          lantern.add(shojiGlow);
+
+          // Curved miniature pagoda roof on the lantern
+          const roof = new THREE.Mesh(new THREE.ConeGeometry(0.84, 0.45, 4), darkWood);
+          roof.rotation.y = Math.PI / 4;
+          roof.position.y = 1.24;
+          lantern.add(roof);
+
+          pier.add(lantern);
+
+          // Rich flickering light illuminating the wooden pier & foreground crimson blossoms
+          const heroLight = new THREE.PointLight(0xff2e44, 5.2, 16, 1.5);
+          heroLight.position.set(-0.35, 1.55, 0.65);
+          pier.add(heroLight);
+          this.lanternLights.push({ light: heroLight, baseIntensity: 5.2, phase: 0.0 });
+
+          this.scene.add(pier);
+        }
+
+        /* ---------------------------------------------------------------------
+           ANIMATED WATERFALL WITH CUSTOM CASCADING SHADER & SPLASH MIST
+           --------------------------------------------------------------------- */
+        buildWaterfall() {
+          // Curved waterfall sheet tumbling down the right gorge cliff
+          const wfGeo = new THREE.PlaneGeometry(5.8, 12.5, 16, 24);
+          const pos = wfGeo.attributes.position;
+          for (let i = 0; i < pos.count; i++) {
+            const x = pos.getX(i);
+            const y = pos.getY(i);
+            const t = (y + 6.25) / 12.5;
+            // Subtle outward cascade bulge as water pours over the cliff edge
+            const zCurve = Math.sin(t * Math.PI) * 1.15 - (1.0 - t) * 0.9;
+            pos.setZ(i, zCurve + Math.sin(x * 1.4) * 0.15);
+          }
+          wfGeo.computeVertexNormals();
+
+          const wfMat = new THREE.ShaderMaterial({
+            transparent: true,
+            depthWrite: false,
+            uniforms: {
+              uTime: this.sharedUniforms.uTime
+            },
+            vertexShader: `
+              varying vec2 vUv;
+              void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+              }
+            `,
+            fragmentShader: `
+              uniform float uTime;
+              varying vec2 vUv;
+
+              float hash(vec2 p) {
+                return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+              }
+              float vnoise(vec2 p) {
+                vec2 i = floor(p);
+                vec2 f = fract(p);
+                f = f * f * (3.0 - 2.0 * f);
+                float a = hash(i);
+                float b = hash(i + vec2(1.0, 0.0));
+                float c = hash(i + vec2(0.0, 1.0));
+                float d = hash(i + vec2(1.0, 1.0));
+                return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+              }
+
+              void main() {
+                // Split into 3 natural cascading streams across the cliff face
+                float streamMask =
+                  smoothstep(0.02, 0.18, vUv.x) * (1.0 - smoothstep(0.82, 0.98, vUv.x)) *
+                  (0.65 + 0.35 * sin(vUv.x * 18.0));
+
+                // Fast downward scrolling foam streaks
+                float n1 = vnoise(vec2(vUv.x * 14.0, vUv.y * 5.0 + uTime * 2.1));
+                float n2 = vnoise(vec2(vUv.x * 28.0 + 3.1, vUv.y * 10.0 + uTime * 3.4));
+                float streaks = smoothstep(0.28, 0.85, n1 * 0.65 + n2 * 0.55);
+
+                // Soft fade at cliff crest and splash pool base
+                float vertFade = smoothstep(0.0, 0.16, vUv.y) * (1.0 - smoothstep(0.88, 1.0, vUv.y));
+                float mistBottom = smoothstep(0.26, 0.0, vUv.y) * 0.55;
+
+                // Silvery moonlight tinted with crimson night reflection
+                vec3 waterCol = mix(vec3(0.28, 0.16, 0.22), vec3(0.92, 0.78, 0.84), streaks);
+                waterCol += vec3(0.85, 0.16, 0.28) * mistBottom;
+
+                float alpha = clamp((streaks * 0.75 + 0.18 + mistBottom) * streamMask * vertFade, 0.0, 0.9);
+                gl_FragColor = vec4(waterCol, alpha);
+              }
+            `
+          });
+
+          const wfMesh = new THREE.Mesh(wfGeo, wfMat);
+          wfMesh.position.set(10.8, 3.9, -36.5);
+          wfMesh.rotation.y = -0.22;
+          this.scene.add(wfMesh);
+        }
+
+        /* ---------------------------------------------------------------------
+           4. REFLECTIVE DARK LAKE WITH CUSTOM SHADER RIPPLES & REFLECTIONS
+           Animated wave displacement, crimson moon column, lantern reflections,
+           torii/waterfall shimmer, and atmospheric distance fade.
+           --------------------------------------------------------------------- */
+        buildReflectiveLake() {
+          const waterGeo = new THREE.PlaneGeometry(240, 155, isMobile ? 48 : 96, isMobile ? 48 : 96);
+          waterGeo.rotateX(-Math.PI / 2);
+
+          const waterMat = new THREE.ShaderMaterial({
+            uniforms: {
+              uTime: this.sharedUniforms.uTime,
+              uWindStrength: this.sharedUniforms.uWindStrength,
+              uLanternPulse: this.sharedUniforms.uLanternPulse,
+              uMoonPos: { value: this.moonPosition }
+            },
+            vertexShader: `
+              uniform float uTime;
+              uniform float uWindStrength;
+              varying vec3 vWorldPos;
+              varying float vWaveH;
+
+              void main() {
+                vec4 wp = modelMatrix * vec4(position, 1.0);
+                // Multi-layered gentle lake wave displacement
+                float w1 = sin(wp.x * 0.55 + uTime * 1.15) * cos(wp.z * 0.42 - uTime * 0.85) * 0.055;
+                float w2 = sin(wp.x * 1.45 - wp.z * 1.1 + uTime * 2.05) * 0.025;
+                float h = (w1 + w2) * (0.75 + uWindStrength * 0.6);
+                wp.y += h;
+                vWaveH = h;
+                vWorldPos = wp.xyz;
+                gl_Position = projectionMatrix * viewMatrix * wp;
+              }
+            `,
+            fragmentShader: `
+              uniform float uTime;
+              uniform float uWindStrength;
+              uniform float uLanternPulse;
+              uniform vec3 uMoonPos;
+
+              varying vec3 vWorldPos;
+              varying float vWaveH;
+
+              // Analytic multi-frequency water ripple normal
+              vec3 getWaterNormal(vec2 p, float t) {
+                float speed = 0.85 + uWindStrength * 0.4;
+                float dx =
+                  cos(p.x * 1.3 + p.y * 0.6 + t * 1.6 * speed) * 0.085 +
+                  cos(p.x * 3.2 - p.y * 2.1 - t * 2.3 * speed) * 0.045 +
+                  cos(p.x * 6.8 + p.y * 4.5 + t * 3.1) * 0.022;
+                float dz =
+                  sin(p.y * 1.8 - p.x * 0.5 + t * 1.8 * speed) * 0.115 +
+                  sin(p.y * 4.1 + p.x * 1.9 - t * 2.6 * speed) * 0.058 +
+                  sin(p.y * 9.5 - p.x * 2.4 + t * 3.6) * 0.028;
+                return normalize(vec3(-dx, 1.0, -dz));
+              }
+
+              // Procedural shimmering reflection column for each glowing 3D lantern
+              vec3 lanternReflection(vec3 wp, vec3 N, vec3 V, vec2 lXZ, vec3 lCol, float width, float power) {
+                vec2 toL = lXZ - wp.xz;
+                float zDist = max(0.5, -toL.y + 4.0);
+                // Distort horizontal alignment by water ripple normal
+                float xDiff = abs((wp.x - lXZ.x) + N.x * 5.2);
+                float trail = exp(-pow(xDiff / (width + zDist * 0.032), 2.0));
+                float depthFalloff = exp(-abs(wp.z - lXZ.y) * 0.075);
+                // Broken horizontal wave glints
+                float sparkle = smoothstep(-0.02, 0.12, N.z + 0.06);
+                return lCol * trail * depthFalloff * (0.45 + sparkle * 1.15) * power;
+              }
+
+              void main() {
+                vec3 N = getWaterNormal(vWorldPos.xz, uTime);
+                vec3 V = normalize(cameraPosition - vWorldPos);
+                vec3 R = reflect(-V, N);
+
+                // Fresnel grazing angle mirror response
+                float fresnel = pow(1.0 - max(0.0, dot(N, V)), 3.2);
+
+                // Deep obsidian water base + subtle crimson sky reflection
+                vec3 abyss = vec3(0.014, 0.005, 0.012);
+                vec3 skyReflect = vec3(0.13, 0.02, 0.045);
+                vec3 col = mix(abyss, skyReflect, clamp(fresnel * 1.15, 0.0, 0.88));
+
+                // 1. Shimmering Blood-Red Moon Reflection Path
+                vec3 moonDir = normalize(uMoonPos - vWorldPos);
+                float moonSpec = pow(max(0.0, dot(R, moonDir)), 36.0);
+                float moonWide = pow(max(0.0, dot(R, moonDir)), 7.0);
+                // Extra shimmering column centered under the moon & torii axis
+                float colAlign = exp(-pow((vWorldPos.x - 1.2 + N.x * 8.5) * 0.22, 2.0));
+                col += vec3(1.0, 0.22, 0.34) * moonSpec * 2.4;
+                col += vec3(0.75, 0.06, 0.16) * (moonWide * 0.55 + colAlign * 0.35 * (0.5 + 0.5 * N.z * 6.0));
+
+                // 2. Real-time Reflections of Lanterns, Torii, Pagoda & Foreground Pier
+                vec3 crimsonGlow = vec3(1.0, 0.16, 0.28) * uLanternPulse;
+                vec3 warmGlow = vec3(1.0, 0.42, 0.38) * uLanternPulse;
+
+                // Foreground left pier lantern reflection (vivid near bottom-left)
+                col += lanternReflection(vWorldPos, N, V, vec2(-7.8, 10.6), warmGlow, 0.95, 1.55);
+                // Torii gate hanging lanterns & steps reflection (center shimmering ribbons)
+                col += lanternReflection(vWorldPos, N, V, vec2(-0.6, -13.5), crimsonGlow, 1.85, 1.35);
+                // Right pathway lantern reflection
+                col += lanternReflection(vWorldPos, N, V, vec2(4.5, -10.0), crimsonGlow, 1.1, 0.95);
+                // Pagoda glowing windows reflection (left midground)
+                col += lanternReflection(vWorldPos, N, V, vec2(-8.8, -12.5), crimsonGlow, 2.6, 0.72);
+                // Waterfall silvery-crimson pool shimmer (right midground)
+                col += lanternReflection(vWorldPos, N, V, vec2(10.8, -32.0), vec3(0.75, 0.48, 0.58), 2.4, 0.55);
+
+                // Subtle silver-pink wave crest glints
+                float crest = smoothstep(0.035, 0.085, vWaveH + N.z * 0.18);
+                col += vec3(0.95, 0.35, 0.45) * crest * 0.16;
+
+                // Atmospheric distance fog integration
+                float dist = length(cameraPosition - vWorldPos);
+                float fogFactor = 1.0 - exp(-pow(dist * 0.0112, 2.0));
+                col = mix(col, vec3(0.067, 0.012, 0.031), clamp(fogFactor, 0.0, 0.96));
+
+                gl_FragColor = vec4(col, 1.0);
+              }
+            `
+          });
+
+          const waterMesh = new THREE.Mesh(waterGeo, waterMat);
+          waterMesh.position.set(0, -1.75, -35);
+          this.scene.add(waterMesh);
+        }
+
+        /* ---------------------------------------------------------------------
+           FLOATING MIST DRIFTING JUST ABOVE THE LAKE SURFACE & WATERFALL
+           --------------------------------------------------------------------- */
+        buildFloatingLakeMist() {
+          const mistGeo = new THREE.PlaneGeometry(1, 1);
+          const mistMat = new THREE.ShaderMaterial({
+            transparent: true,
+            depthWrite: false,
+            uniforms: {
+              uMap: { value: this.cloudTex },
+              uTime: this.sharedUniforms.uTime
+            },
+            vertexShader: `
+              varying vec2 vUv;
+              void main() {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+              }
+            `,
+            fragmentShader: `
+              uniform sampler2D uMap;
+              varying vec2 vUv;
+              void main() {
+                vec4 t = texture2D(uMap, vUv);
+                vec3 col = mix(vec3(0.22, 0.06, 0.11), vec3(0.72, 0.24, 0.34), t.r);
+                gl_FragColor = vec4(col, t.a * 0.16);
+              }
+            `
+          });
+
+          this.mistLayers = [];
+          for (let i = 0; i < QUALITY.mistCount; i++) {
+            const m = new THREE.Mesh(mistGeo, mistMat);
+            const x = randRange(-26, 26);
+            const z = randRange(-38, 12);
+            const y = randRange(-1.1, 0.7);
+            const w = randRange(12, 24);
+            m.position.set(x, y, z);
+            m.scale.set(w, w * 0.28, 1);
+            this.scene.add(m);
+            this.mistLayers.push({
+              mesh: m,
+              speed: randRange(0.25, 0.75),
+              phase: randRange(0, 6.28)
+            });
+          }
+        }
+
+        /* ---------------------------------------------------------------------
+           GPU-DRIVEN 3D FALLING SAKURA PETALS ACROSS FOREGROUND, MID & DISTANCE
+           Tumbling curved 3D petal geometry reacting to wind gusts & depth speed.
+           --------------------------------------------------------------------- */
+        buildFallingPetals() {
+          // Craft a delicate curved 3D sakura petal mesh (not a flat square)
+          const petalGeo = new THREE.PlaneGeometry(0.26, 0.38, 3, 4);
+          const pos = petalGeo.attributes.position;
+          for (let i = 0; i < pos.count; i++) {
+            const x = pos.getX(i);
+            const y = pos.getY(i);
+            const ny = (y + 0.19) / 0.38; // 0 at base, 1 at tip
+            // Taper teardrop sakura contour + gentle 3D cup curve
+            const widthScale = Math.sin(Math.pow(ny, 0.72) * Math.PI);
+            const cupZ = (x * x * 3.8) + Math.sin(ny * Math.PI) * 0.045;
+            pos.setXYZ(i, x * widthScale, y, cupZ);
+          }
+          petalGeo.computeVertexNormals();
+
+          const count = QUALITY.fallingPetals;
+          const aSeed = new Float32Array(count * 4);  // x: startX, y: startY, z: startZ, w: speedScale
+          const aPhase = new Float32Array(count * 3); // x: phase, y: tumbleSpeed, z: sizeScale
+
+          const spawnLen = this.petalSpawnPoints.length;
+          for (let i = 0; i < count; i++) {
+            // 3 depth strata: 22% Foreground Hero (close to camera), 53% Tree/Midground, 25% Distant slow
+            const stratum = rand();
+            let sx, sy, sz, speedScale, sizeScale;
+
+            if (stratum < 0.22) {
+              // Foreground petals passing close to the camera
+              sx = randRange(-14, 14);
+              sy = randRange(-2, 14);
+              sz = randRange(12, 20.5);
+              speedScale = randRange(1.15, 1.55);
+              sizeScale = randRange(0.95, 1.55);
+            } else if (stratum < 0.75 && spawnLen > 0) {
+              // Detaching organically from the giant blossom canopy
+              const sp = this.petalSpawnPoints[Math.floor(rand() * spawnLen)];
+              sx = sp.x + randRange(-4.0, 5.5);
+              sy = sp.y + randRange(-5.0, 3.0);
+              sz = sp.z + randRange(-5.5, 5.5);
+              speedScale = randRange(0.75, 1.15);
+              sizeScale = randRange(0.7, 1.15);
+            } else {
+              // Distant ambient petals moving more slowly
+              sx = randRange(-24, 24);
+              sy = randRange(0, 20);
+              sz = randRange(-32, -8);
+              speedScale = randRange(0.38, 0.65);
+              sizeScale = randRange(0.65, 1.05);
+            }
+
+            aSeed[i * 4] = sx;
+            aSeed[i * 4 + 1] = sy;
+            aSeed[i * 4 + 2] = sz;
+            aSeed[i * 4 + 3] = speedScale;
+
+            aPhase[i * 3] = randRange(0, 100);
+            aPhase[i * 3 + 1] = randRange(0.8, 2.4);
+            aPhase[i * 3 + 2] = sizeScale;
+          }
+
+          petalGeo.setAttribute('aSeed', new THREE.InstancedBufferAttribute(aSeed, 4));
+          petalGeo.setAttribute('aPhase', new THREE.InstancedBufferAttribute(aPhase, 3));
+
+          const petalMat = new THREE.ShaderMaterial({
+            transparent: true,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+            uniforms: {
+              uTime: this.sharedUniforms.uTime,
+              uWindStrength: this.sharedUniforms.uWindStrength,
+              uGustImpulse: this.sharedUniforms.uGustImpulse
+            },
+            vertexShader: `
+              attribute vec4 aSeed;
+              attribute vec3 aPhase;
+
+              uniform float uTime;
+              uniform float uWindStrength;
+              uniform float uGustImpulse;
+
+              varying vec2 vUv;
+              varying float vDepthGlow;
+              varying float vFacing;
+
+              mat3 rotY(float a) {
+                float c = cos(a), s = sin(a);
+                return mat3(c, 0.0, s, 0.0, 1.0, 0.0, -s, 0.0, c);
+              }
+              mat3 rotX(float a) {
+                float c = cos(a), s = sin(a);
+                return mat3(1.0, 0.0, 0.0, 0.0, c, -s, 0.0, s, c);
+              }
+              mat3 rotZ(float a) {
+                float c = cos(a), s = sin(a);
+                return mat3(c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0);
+              }
+
+              void main() {
+                vUv = uv;
+                float t = uTime * aSeed.w + aPhase.x;
+                float gust = uWindStrength + uGustImpulse * 1.65;
+
+                // Continuous seamless 3D drift cycle
+                float cycleY = mod(aSeed.y - t * 1.12 + 4.0, 22.0) - 2.5;
+                float driftX = mod(aSeed.x + t * (1.25 + gust * 1.2) + sin(t * 0.75) * 1.6 + 24.0, 48.0) - 24.0;
+                float driftZ = aSeed.z + cos(t * 0.65 + aPhase.x) * 1.5;
+
+                // Natural aerodynamic 3D petal tumbling
+                float rx = t * aPhase.y * 1.15;
+                float ry = t * aPhase.y * 0.85 + aPhase.x;
+                float rz = sin(t * 1.4 + aPhase.x) * 1.2;
+                mat3 rot = rotY(ry) * rotX(rx) * rotZ(rz);
+
+                vec3 localPos = rot * (position * aPhase.z);
+                vec3 worldPos = vec3(driftX, cycleY, driftZ) + localPos;
+
+                vec3 rotatedNorm = normalize(rot * normal);
+                vFacing = abs(dot(rotatedNorm, normalize(cameraPosition - worldPos)));
+                // Foreground petals catch bright crimson highlights
+                vDepthGlow = smoothstep(-28.0, 18.0, worldPos.z);
+
+                gl_Position = projectionMatrix * viewMatrix * vec4(worldPos, 1.0);
+              }
+            `,
+            fragmentShader: `
+              varying vec2 vUv;
+              varying float vDepthGlow;
+              varying float vFacing;
+
+              void main() {
+                // Soft petal shading: deeper ruby base to glowing crimson-pink tip
+                vec3 baseCol = vec3(0.68, 0.03, 0.14);
+                vec3 tipCol = vec3(1.0, 0.24, 0.40);
+                vec3 col = mix(baseCol, tipCol, vUv.y);
+                // Translucent catchlight when turning edge-on to moonlight
+                col += vec3(1.0, 0.58, 0.66) * (0.28 + 0.55 * vFacing) * (0.45 + vDepthGlow * 0.65);
+
+                float alpha = smoothstep(0.0, 0.14, vUv.y) * smoothstep(1.0, 0.86, vUv.y);
+                gl_FragColor = vec4(col, alpha * (0.55 + vDepthGlow * 0.42));
+              }
+            `
+          });
+
+          const petalMesh = new THREE.InstancedMesh(petalGeo, petalMat, count);
+          petalMesh.frustumCulled = false;
+          const identity = new THREE.Matrix4();
+          for (let i = 0; i < count; i++) {
+            petalMesh.setMatrixAt(i, identity);
+          }
+          petalMesh.instanceMatrix.needsUpdate = true;
+          this.scene.add(petalMesh);
+        }
+
+        /* ---------------------------------------------------------------------
+           INTERACTIVE CONTROLS: MOUSE PARALLAX, DRAG ORBIT & MOBILE TOUCH
+           --------------------------------------------------------------------- */
+        bindEvents() {
+          window.addEventListener('resize', () => this.onResize(), { passive: true });
+
+          window.addEventListener('mousemove', (e) => {
+            this.mouseNorm.x = (e.clientX / window.innerWidth) * 2 - 1;
+            this.mouseNorm.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+            if (this.isDragging) {
+              const dx = (e.clientX - this.lastPointer.x) / window.innerWidth;
+              const dy = (e.clientY - this.lastPointer.y) / window.innerHeight;
+              this.dragTarget.x = Math.max(-5.5, Math.min(5.5, this.dragTarget.x - dx * 14));
+              this.dragTarget.y = Math.max(-2.2, Math.min(3.5, this.dragTarget.y + dy * 8));
+              this.lastPointer.x = e.clientX;
+              this.lastPointer.y = e.clientY;
+            }
+          }, { passive: true });
+
+          // Allow subtle camera inspection when dragging directly on the 3D scene canvas
+          this.canvas.addEventListener('mousedown', (e) => {
+            this.isDragging = true;
+            this.lastPointer.x = e.clientX;
+            this.lastPointer.y = e.clientY;
+          });
+          window.addEventListener('mouseup', () => {
+            this.isDragging = false;
+          });
+
+          // Touch-based camera parallax & drag on mobile
+          this.canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+              this.isDragging = true;
+              this.lastPointer.x = e.touches[0].clientX;
+              this.lastPointer.y = e.touches[0].clientY;
+            }
+          }, { passive: true });
+
+          this.canvas.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 1) {
+              const touch = e.touches[0];
+              this.mouseNorm.x = (touch.clientX / window.innerWidth) * 2 - 1;
+              this.mouseNorm.y = -(touch.clientY / window.innerHeight) * 2 + 1;
+              if (this.isDragging) {
+                const dx = (touch.clientX - this.lastPointer.x) / window.innerWidth;
+                const dy = (touch.clientY - this.lastPointer.y) / window.innerHeight;
+                this.dragTarget.x = Math.max(-4.5, Math.min(4.5, this.dragTarget.x - dx * 11));
+                this.dragTarget.y = Math.max(-1.8, Math.min(2.6, this.dragTarget.y + dy * 6));
+                this.lastPointer.x = touch.clientX;
+                this.lastPointer.y = touch.clientY;
+              }
+            }
+          }, { passive: true });
+
+          window.addEventListener('touchend', () => {
+            this.isDragging = false;
+          }, { passive: true });
+        }
+
+        onResize() {
+          const w = window.innerWidth;
+          const h = Math.max(1, window.innerHeight);
+          const aspect = w / h;
+          this.camera.fov = aspect < 0.85 ? 56 : 42;
+          this.camera.aspect = aspect;
+          this.camera.updateProjectionMatrix();
+          this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, w < 768 ? 1.5 : 2));
+          this.renderer.setSize(w, h, false);
+        }
+
+        /**
+         * Triggers an organic crimson wind gust sweeping through the branches, blossoms & petals.
+         */
+        triggerWindGust(strength = 1.0) {
+          gsap.killTweensOf(this.sharedUniforms.uGustImpulse);
+          gsap.to(this.sharedUniforms.uGustImpulse, {
+            value: strength,
+            duration: 0.9,
+            ease: 'power2.out',
+            onComplete: () => {
+              gsap.to(this.sharedUniforms.uGustImpulse, {
+                value: 0,
+                duration: 3.4,
+                ease: 'power2.inOut'
+              });
+            }
+          });
+          audioEngine.playChime(587.33, 0.075);
+        }
+
+        /**
+         * Orchestrated GSAP camera transitions for cinematic states.
+         */
+        playEntranceAnimation() {
+          gsap.to(this.camBase, {
+            x: 0.4,
+            y: 4.5,
+            z: 23.5,
+            duration: 2.2,
+            ease: 'power3.out'
+          });
+          gsap.fromTo(this.camera.position,
+            { x: -1.4, y: 6.4, z: 31.5 },
+            { x: 0.4, y: 4.5, z: 23.5, duration: 2.4, ease: 'power3.out' }
+          );
+        }
+
+        transitionCameraMode(mode) {
+          if (mode === 'register') {
+            gsap.to(this.camBase, { x: 1.5, y: 4.9, z: 22.2, duration: 1.4, ease: 'power2.inOut' });
+            gsap.to(this.camTargetBase, { x: -0.6, y: 5.2, z: -12.0, duration: 1.4, ease: 'power2.inOut' });
+          } else if (mode === 'authenticated') {
+            // Glide gracefully toward the Torii gateway & moonlit lake
+            gsap.to(this.camBase, { x: -0.4, y: 3.6, z: 14.5, duration: 2.3, ease: 'power3.inOut' });
+            gsap.to(this.camTargetBase, { x: -0.5, y: 4.4, z: -18.0, duration: 2.3, ease: 'power3.inOut' });
+            this.triggerWindGust(1.15);
+          } else {
+            gsap.to(this.camBase, { x: 0.4, y: 4.5, z: 23.5, duration: 1.5, ease: 'power2.inOut' });
+            gsap.to(this.camTargetBase, { x: -1.2, y: 4.8, z: -12.0, duration: 1.5, ease: 'power2.inOut' });
+          }
+        }
+
+        recenterCamera() {
+          gsap.to(this.dragTarget, { x: 0, y: 0, duration: 1.1, ease: 'power3.out' });
+        }
+
+        /* ---------------------------------------------------------------------
+           MAIN REAL-TIME LIVING WORLD UPDATE LOOP
+           --------------------------------------------------------------------- */
+        animate() {
+          requestAnimationFrame(() => this.animate());
+
+          const rawDt = Math.min(this.clock.getDelta(), 0.05);
+          const motionFactor = prefersReducedMotion ? 0.22 : 1.0;
+          this.elapsed += rawDt * motionFactor;
+          const t = this.elapsed;
+
+          this.sharedUniforms.uTime.value = t;
+
+          // 1. Non-repeating organic wind wave envelope (prime frequency ratios)
+          const naturalWind = 0.42
+            + 0.22 * Math.sin(t * 0.27)
+            + 0.14 * Math.sin(t * 0.61 + 1.3)
+            + 0.09 * Math.cos(t * 1.13 + 0.7);
+          this.sharedUniforms.uWindStrength.value = Math.max(0.12, naturalWind);
+          audioEngine.modulateWind(naturalWind + this.sharedUniforms.uGustImpulse.value);
+
+          // 2. Subtle organic lantern flame flicker
+          const pulse = 0.94 + 0.06 * Math.sin(t * 4.3) * Math.cos(t * 2.7);
+          this.sharedUniforms.uLanternPulse.value = pulse;
+          for (let i = 0; i < this.lanternLights.length; i++) {
+            const item = this.lanternLights[i];
+            const flicker = 0.90 + 0.10 * Math.sin(t * 3.8 + item.phase) + 0.05 * Math.sin(t * 8.9 + item.phase * 2.1);
+            item.light.intensity = item.baseIntensity * flicker;
+          }
+
+          // 3. Hanging Torii lanterns swaying softly with wind
+          const windTotal = naturalWind + this.sharedUniforms.uGustImpulse.value;
+          for (let i = 0; i < this.hangingLanterns.length; i++) {
+            const hl = this.hangingLanterns[i];
+            hl.pivot.rotation.z = Math.sin(t * 1.7 + hl.phase) * (0.06 + windTotal * 0.14);
+            hl.pivot.rotation.x = Math.cos(t * 1.3 + hl.phase) * 0.04;
+          }
+
+          // 4. Animated storm clouds slowly crossing the moon
+          for (let i = 0; i < this.stormClouds.length; i++) {
+            const c = this.stormClouds[i];
+            c.mesh.position.x += c.speed * rawDt * motionFactor;
+            if (c.mesh.position.x > c.wrapHalfWidth) {
+              c.mesh.position.x = -c.wrapHalfWidth;
+            }
+            c.mesh.position.y = c.baseY + Math.sin(t * 0.25 + c.bobPhase) * 0.35;
+          }
+
+          // 5. Drifting low lake mist
+          for (let i = 0; i < this.mistLayers.length; i++) {
+            const m = this.mistLayers[i];
+            m.mesh.position.x += m.speed * rawDt * motionFactor;
+            if (m.mesh.position.x > 28) m.mesh.position.x = -28;
+            m.mesh.position.y += Math.sin(t * 0.5 + m.phase) * 0.0015;
+          }
+
+          // 6. Smooth cinematic camera parallax, gentle breathing & spring damping
+          const damp = 1.0 - Math.exp(-3.4 * rawDt);
+          this.mouseSmooth.x += (this.mouseNorm.x - this.mouseSmooth.x) * damp;
+          this.mouseSmooth.y += (this.mouseNorm.y - this.mouseSmooth.y) * damp;
+
+          // Gently ease drag inspection back slightly when released if desired, or hold smoothly
+          this.dragOffset.x += (this.dragTarget.x - this.dragOffset.x) * damp;
+          this.dragOffset.y += (this.dragTarget.y - this.dragOffset.y) * damp;
+
+          const breathX = Math.sin(t * 0.34) * 0.28 * motionFactor;
+          const breathY = Math.cos(t * 0.46) * 0.18 * motionFactor;
+
+          const parallaxX = this.mouseSmooth.x * 1.85 * motionFactor;
+          const parallaxY = this.mouseSmooth.y * 0.95 * motionFactor;
+
+          this.camera.position.x = this.camBase.x + parallaxX + this.dragOffset.x + breathX;
+          this.camera.position.y = this.camBase.y + parallaxY + this.dragOffset.y + breathY;
+          this.camera.position.z = this.camBase.z - Math.abs(this.mouseSmooth.x) * 0.35;
+
+          this.camera.lookAt(
+            this.camTargetBase.x + parallaxX * 0.28 + this.dragOffset.x * 0.35,
+            this.camTargetBase.y + parallaxY * 0.22 + this.dragOffset.y * 0.25,
+            this.camTargetBase.z
+          );
+
+          this.renderer.render(this.scene, this.camera);
+        }
+      }
+
+      /* =======================================================================
+         7. AUTHENTICATION INTERFACE CONTROLLER & LOCALIZATION
+         Complete Login, Register, Password Recovery, Validation & Realm States
+         ======================================================================= */
+      const TRANSLATIONS = {
+        en: {
+          hero1: 'Dream. Build.',
+          hero2: 'Beyond Limits.',
+          subtitle: 'Enter a new realm of possibilities.',
+          kicker: 'Authentication',
+          tabLogin: 'Login',
+          tabRegister: 'Register',
+          remember: 'Remember me',
+          forgot: 'Forgot password?',
+          divider: 'or continue with',
+          noAccount: "Don't have an account?",
+          registerNow: 'Register now →',
+          haveAccount: 'Already have an account?',
+          loginNow: 'Login instead →',
+          quote: '“Not just a destination,<br class="hidden sm:inline" /> but a journey.”'
+        },
+        jp: {
+          hero1: '夢を紡ぎ、築け。',
+          hero2: '限界の先へ。',
+          subtitle: '無限の可能性が広がる新たな境地へ。',
+          kicker: '認証ゲートウェイ',
+          tabLogin: 'ログイン',
+          tabRegister: '新規登録',
+          remember: 'ログインを保持',
+          forgot: 'パスワードをお忘れですか？',
+          divider: 'または以下で続行',
+          noAccount: 'アカウントをお持ちでない方',
+          registerNow: '新規登録 →',
+          haveAccount: 'すでにアカウントをお持ちの方',
+          loginNow: 'ログインへ →',
+          quote: '「目的地ではなく、<br class="hidden sm:inline" /> 終わりなき旅路。」'
+        }
+      };
+
+      function showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const el = document.createElement('div');
+        const accent = type === 'error'
+          ? 'border-rose-500/70 bg-[#22070e]/95 text-rose-100'
+          : (type === 'success'
+            ? 'border-emerald-400/50 bg-[#0a1c17]/95 text-emerald-100'
+            : 'border-rose-400/35 bg-[#16070d]/95 text-stone-100');
+
+        el.className = `pointer-events-auto px-4 py-2.5 rounded-xl border backdrop-blur-md shadow-2xl text-xs tracking-wide flex items-center gap-2.5 ${accent}`;
+        el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full ${type === 'error' ? 'bg-rose-500' : (type === 'success' ? 'bg-emerald-400' : 'bg-rose-400')}"></span><span>${message}</span>`;
+        container.appendChild(el);
+
+        gsap.fromTo(el, { y: -16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: 'power2.out' });
+        setTimeout(() => {
+          gsap.to(el, {
+            y: -12,
+            opacity: 0,
+            duration: 0.35,
+            ease: 'power2.in',
+            onComplete: () => el.remove()
+          });
+        }, 3400);
+      }
+
+      function initUIController(world) {
+        let mode = 'login'; // 'login' | 'register'
+        let lang = 'en';
+        let isSubmitting = false;
+
+        // DOM Elements
+        const tabLogin = document.getElementById('tab-login');
+        const tabRegister = document.getElementById('tab-register');
+        const tabIndicator = document.getElementById('tab-indicator');
+
+        const authMainView = document.getElementById('auth-main-view');
+        const authRecoveryView = document.getElementById('auth-recovery-view');
+        const authSuccessView = document.getElementById('auth-success-view');
+
+        const authForm = document.getElementById('auth-form');
+        const formFeedback = document.getElementById('form-feedback');
+
+        const fieldUsernameGroup = document.getElementById('field-username-group');
+        const fieldConfirmGroup = document.getElementById('field-confirm-group');
+        const loginOptionsRow = document.getElementById('login-options-row');
+        const registerTermsRow = document.getElementById('register-terms-row');
+        const strengthBox = document.getElementById('password-strength-box');
+
+        const inputUsername = document.getElementById('input-username');
+        const inputIdentifier = document.getElementById('input-identifier');
+        const inputPassword = document.getElementById('input-password');
+        const inputConfirm = document.getElementById('input-confirm');
+        const inputTerms = document.getElementById('input-terms');
+
+        const iconIdUser = document.getElementById('icon-id-user');
+        const iconIdMail = document.getElementById('icon-id-mail');
+
+        const btnSubmit = document.getElementById('btn-submit');
+        const submitLabel = document.getElementById('submit-label');
+        const submitIcon = document.getElementById('submit-icon');
+        const submitSpinner = document.getElementById('submit-spinner');
+
+        const switchPrompt = document.getElementById('switch-prompt');
+        const btnSwitchMode = document.getElementById('btn-switch-mode');
+
+        const clearErrors = () => {
+          formFeedback.classList.add('hidden');
+          ['username', 'identifier', 'password', 'confirm', 'terms'].forEach((k) => {
+            const errEl = document.getElementById(`err-${k}`);
+            const wrapEl = document.getElementById(`wrap-${k}`);
+            if (errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
+            if (wrapEl) wrapEl.classList.remove('has-error');
+          });
+        };
+
+        const setFieldError = (key, msg) => {
+          const errEl = document.getElementById(`err-${key}`);
+          const wrapEl = document.getElementById(`wrap-${key}`);
+          if (errEl) { errEl.textContent = msg; errEl.classList.remove('hidden'); }
+          if (wrapEl) wrapEl.classList.add('has-error');
+        };
+
+        const showBanner = (msg, isError = true) => {
+          formFeedback.textContent = msg;
+          formFeedback.className = `mb-4 px-3.5 py-2.5 rounded-lg text-xs leading-relaxed border ${
+            isError
+              ? 'bg-rose-950/60 border-rose-500/50 text-rose-200'
+              : 'bg-emerald-950/60 border-emerald-500/45 text-emerald-200'
+          }`;
+          formFeedback.classList.remove('hidden');
+        };
+
+        const setAuthMode = (nextMode) => {
+          mode = nextMode;
+          clearErrors();
+          const t = TRANSLATIONS[lang];
+
+          if (mode === 'login') {
+            tabIndicator.style.transform = 'translateX(0%)';
+            tabLogin.classList.replace('text-stone-400', 'text-white');
+            tabRegister.classList.replace('text-white', 'text-stone-400');
+            tabLogin.setAttribute('aria-selected', 'true');
+            tabRegister.setAttribute('aria-selected', 'false');
+
+            fieldUsernameGroup.classList.add('hidden');
+            fieldConfirmGroup.classList.add('hidden');
+            strengthBox.classList.add('hidden');
+            registerTermsRow.classList.add('hidden');
+            loginOptionsRow.classList.remove('hidden');
+
+            iconIdUser.classList.remove('hidden');
+            iconIdMail.classList.add('hidden');
+            inputIdentifier.type = 'text';
+            inputIdentifier.placeholder = lang === 'en' ? 'Username or Email' : 'ユーザー名またはメール';
+            inputPassword.autocomplete = 'current-password';
+
+            submitLabel.textContent = t.tabLogin;
+            switchPrompt.textContent = t.noAccount;
+            btnSwitchMode.textContent = t.registerNow;
+          } else {
+            tabIndicator.style.transform = 'translateX(100%)';
+            tabRegister.classList.replace('text-stone-400', 'text-white');
+            tabLogin.classList.replace('text-white', 'text-stone-400');
+            tabRegister.setAttribute('aria-selected', 'true');
+            tabLogin.setAttribute('aria-selected', 'false');
+
+            fieldUsernameGroup.classList.remove('hidden');
+            fieldConfirmGroup.classList.remove('hidden');
+            strengthBox.classList.remove('hidden');
+            registerTermsRow.classList.remove('hidden');
+            loginOptionsRow.classList.add('hidden');
+
+            iconIdUser.classList.add('hidden');
+            iconIdMail.classList.remove('hidden');
+            inputIdentifier.type = 'email';
+            inputIdentifier.placeholder = lang === 'en' ? 'Email Address' : 'メールアドレス';
+            inputPassword.autocomplete = 'new-password';
+
+            submitLabel.textContent = lang === 'en' ? 'Create Account' : 'アカウント作成';
+            switchPrompt.textContent = t.haveAccount;
+            btnSwitchMode.textContent = t.loginNow;
+          }
+
+          gsap.fromTo(authForm, { opacity: 0.4, y: 6 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out' });
+          world.transitionCameraMode(mode);
+          world.triggerWindGust(0.45);
+        };
+
+        // Tab & Switch Listeners
+        tabLogin.addEventListener('click', () => mode !== 'login' && setAuthMode('login'));
+        tabRegister.addEventListener('click', () => mode !== 'register' && setAuthMode('register'));
+        btnSwitchMode.addEventListener('click', () => setAuthMode(mode === 'login' ? 'register' : 'login'));
+
+        // Password visibility toggle
+        const togglePasswordBtn = document.getElementById('toggle-password');
+        const eyeClosed = document.getElementById('eye-closed');
+        const eyeOpen = document.getElementById('eye-open');
+        togglePasswordBtn.addEventListener('click', () => {
+          const isPass = inputPassword.type === 'password';
+          inputPassword.type = isPass ? 'text' : 'password';
+          eyeClosed.classList.toggle('hidden', isPass);
+          eyeOpen.classList.toggle('hidden', !isPass);
+        });
+
+        // Password strength evaluation in Register mode
+        const updateStrength = (val) => {
+          let score = 0;
+          if (val.length >= 8) score++;
+          if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score++;
+          if (/\d/.test(val)) score++;
+          if (/[^A-Za-z0-9]/.test(val)) score++;
+
+          const colors = ['bg-rose-600', 'bg-amber-500', 'bg-rose-400', 'bg-emerald-400'];
+          const labels = ['Weak', 'Fair', 'Strong', 'Unbreakable'];
+          for (let i = 1; i <= 4; i++) {
+            const seg = document.getElementById(`str-${i}`);
+            seg.className = `flex-1 rounded-full transition-colors duration-300 ${i <= score ? colors[Math.max(0, score - 1)] : 'bg-white/10'}`;
+          }
+          document.getElementById('str-label').textContent = `Strength: ${val.length ? labels[Math.max(0, score - 1)] : 'Enter 8+ chars'}`;
+        };
+        inputPassword.addEventListener('input', (e) => updateStrength(e.target.value));
+
+        // Form Submission with Full Validation & Cinematic Loading Sequence
+        authForm.addEventListener('submit', (e) => {
+          e.preventDefault();
+          if (isSubmitting) return;
+          clearErrors();
+
+          const idVal = inputIdentifier.value.trim();
+          const passVal = inputPassword.value;
+          let valid = true;
+
+          if (mode === 'register') {
+            const userVal = inputUsername.value.trim();
+            if (userVal.length < 3) {
+              setFieldError('username', 'Choose a name of at least 3 characters.');
+              valid = false;
+            }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(idVal)) {
+              setFieldError('identifier', 'Please enter a valid email address.');
+              valid = false;
+            }
+            if (passVal.length < 8) {
+              setFieldError('password', 'Password must be at least 8 characters long.');
+              valid = false;
+            }
+            if (inputConfirm.value !== passVal) {
+              setFieldError('confirm', 'Passwords do not match.');
+              valid = false;
+            }
+            if (!inputTerms.checked) {
+              setFieldError('terms', 'Please accept the realm covenant to proceed.');
+              valid = false;
+            }
+          } else {
+            if (idVal.length < 3) {
+              setFieldError('identifier', 'Enter your username or email address.');
+              valid = false;
+            }
+            if (passVal.length < 6) {
+              setFieldError('password', 'Password must be at least 6 characters.');
+              valid = false;
+            }
+          }
+
+          if (!valid) {
+            // Subtle tactile shake on error
+            gsap.fromTo('.auth-shell', { x: -6 }, { x: 0, duration: 0.4, ease: 'elastic.out(1.2, 0.3)' });
+            return;
+          }
+
+          // Enter cinematic loading state
+          isSubmitting = true;
+          btnSubmit.disabled = true;
+          submitIcon.classList.add('hidden');
+          submitSpinner.classList.remove('hidden');
+          submitLabel.textContent = mode === 'login' ? 'Unsealing Gate...' : 'Forging Identity...';
+          world.triggerWindGust(0.85);
+
+          setTimeout(() => {
+            isSubmitting = false;
+            btnSubmit.disabled = false;
+            submitSpinner.classList.add('hidden');
+            submitIcon.classList.remove('hidden');
+            submitLabel.textContent = mode === 'login' ? TRANSLATIONS[lang].tabLogin : 'Create Account';
+
+            const displayName = mode === 'register'
+              ? inputUsername.value.trim()
+              : (idVal.includes('@') ? idVal.split('@')[0] : idVal);
+
+            enterAuthenticatedState(displayName);
+          }, 1250);
+        });
+
+        const enterAuthenticatedState = (username) => {
+          document.getElementById('welcome-user').textContent = username;
+          authMainView.classList.add('hidden');
+          authRecoveryView.classList.add('hidden');
+          authSuccessView.classList.remove('hidden');
+
+          gsap.fromTo(authSuccessView, { opacity: 0, scale: 0.96 }, { opacity: 1, scale: 1, duration: 0.55, ease: 'power3.out' });
+          world.transitionCameraMode('authenticated');
+          audioEngine.playChime(440, 0.11);
+          showToast(`Sanctuary gate opened — Welcome, ${username}`, 'success');
+        };
+
+        // OAuth Buttons
+        document.querySelectorAll('.btn-oauth').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            if (isSubmitting) return;
+            const provider = btn.dataset.provider;
+            showToast(`Connecting securely with ${provider}...`, 'info');
+            world.triggerWindGust(0.65);
+            setTimeout(() => {
+              enterAuthenticatedState(`${provider} Traveler`);
+            }, 950);
+          });
+        });
+
+        // Forgot Password Flow
+        document.getElementById('btn-forgot').addEventListener('click', () => {
+          clearErrors();
+          authMainView.classList.add('hidden');
+          authRecoveryView.classList.remove('hidden');
+          gsap.fromTo(authRecoveryView, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.35 });
+        });
+
+        document.getElementById('btn-back-to-login').addEventListener('click', () => {
+          authRecoveryView.classList.add('hidden');
+          authMainView.classList.remove('hidden');
+          gsap.fromTo(authMainView, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.35 });
+        });
+
+        document.getElementById('recovery-form').addEventListener('submit', (e) => {
+          e.preventDefault();
+          const emailEl = document.getElementById('input-recovery-email');
+          const errEl = document.getElementById('err-recovery');
+          const val = emailEl.value.trim();
+
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+            errEl.textContent = 'Enter a valid email address to receive your recovery seal.';
+            errEl.classList.remove('hidden');
+            return;
+          }
+          errEl.classList.add('hidden');
+          showToast(`Recovery lantern dispatched to ${val}`, 'success');
+          world.triggerWindGust(0.7);
+          emailEl.value = '';
+          setTimeout(() => {
+            authRecoveryView.classList.add('hidden');
+            authMainView.classList.remove('hidden');
+            showBanner('Check your inbox for the Takadori recovery seal.', false);
+          }, 600);
+        });
+
+        // Explore World (hide HUD temporarily) & Sign Out
+        const uiLayer = document.getElementById('ui-layer');
+        const btnShowUi = document.getElementById('btn-show-ui');
+
+        document.getElementById('btn-explore-world').addEventListener('click', () => {
+          gsap.to(uiLayer, {
+            opacity: 0,
+            duration: 0.6,
+            onComplete: () => {
+              uiLayer.style.visibility = 'hidden';
+              btnShowUi.classList.remove('hidden');
+              gsap.fromTo(btnShowUi, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4 });
+              showToast('Drag anywhere to explore the living nightscape', 'info');
+            }
+          });
+        });
+
+        btnShowUi.addEventListener('click', () => {
+          btnShowUi.classList.add('hidden');
+          uiLayer.style.visibility = 'visible';
+          gsap.to(uiLayer, { opacity: 1, duration: 0.5 });
+        });
+
+        document.getElementById('btn-sign-out').addEventListener('click', () => {
+          authSuccessView.classList.add('hidden');
+          authMainView.classList.remove('hidden');
+          authForm.reset();
+          updateStrength('');
+          setAuthMode('login');
+          showToast('Returned to the outer sanctuary gate.', 'info');
+        });
+
+        // Language Toggle (EN <-> JP)
+        document.getElementById('btn-lang').addEventListener('click', () => {
+          lang = lang === 'en' ? 'jp' : 'en';
+          const t = TRANSLATIONS[lang];
+          document.getElementById('lang-label').textContent = lang === 'en' ? 'EN' : '日本語';
+          document.getElementById('hero-line-1').textContent = t.hero1;
+          document.getElementById('hero-line-2').textContent = t.hero2;
+          document.getElementById('hero-subtitle').textContent = t.subtitle;
+          document.getElementById('auth-kicker').textContent = t.kicker;
+          tabLogin.textContent = t.tabLogin;
+          tabRegister.textContent = t.tabRegister;
+          document.getElementById('lbl-remember').textContent = t.remember;
+          document.getElementById('btn-forgot').textContent = t.forgot;
+          document.getElementById('lbl-divider').textContent = t.divider;
+          document.getElementById('footer-quote').innerHTML = t.quote;
+          setAuthMode(mode);
+        });
+
+        // Wind Gust Button
+        document.getElementById('btn-wind').addEventListener('click', () => {
+          world.triggerWindGust(1.35);
+          showToast('A crimson wind sweeps through the blossoms', 'info');
+        });
+
+        // Audio Soundscape Button
+        document.getElementById('btn-audio').addEventListener('click', (e) => {
+          const active = audioEngine.toggle();
+          e.currentTarget.setAttribute('aria-pressed', String(active));
+          document.getElementById('icon-audio-off').classList.toggle('hidden', active);
+          document.getElementById('icon-audio-on').classList.toggle('hidden', !active);
+          showToast(active ? 'Nightscape ambient soundscape active' : 'Soundscape muted', 'info');
+        });
+
+        // Recenter Camera Compass Rose
+        document.getElementById('btn-reset-cam').addEventListener('click', () => {
+          world.recenterCamera();
+          world.triggerWindGust(0.5);
+        });
+      }
+
+      /* =======================================================================
+         8. BOOTSTRAP APPLICATION ON WINDOW LOAD
+         ======================================================================= */
+      window.addEventListener('load', () => {
+        const loaderBar = document.getElementById('loader-bar');
+        const loaderStatus = document.getElementById('loader-status');
+        const curtain = document.getElementById('cinematic-curtain');
+
+        try {
+          if (typeof THREE === 'undefined') {
+            throw new Error('Three.js failed to load.');
+          }
+
+          loaderBar.style.width = '55%';
+          loaderStatus.textContent = 'Sculpting Crimson Canopy & Lake Reflections';
+
+          const canvas = document.getElementById('world-canvas');
+          const world = new TakadoriWorld(canvas);
+          initUIController(world);
+
+          loaderBar.style.width = '100%';
+          loaderStatus.textContent = 'Entering the Living World';
+
+          // Start 3D animation loop immediately
+          world.animate();
+
+          // Orchestrated GSAP Cinematic Reveal
+          setTimeout(() => {
+            world.playEntranceAnimation();
+
+            gsap.to(curtain, {
+              opacity: 0,
+              duration: 1.15,
+              ease: 'power2.inOut',
+              onComplete: () => curtain.remove()
+            });
+
+            gsap.from('#hero-left > *', {
+              y: 26,
+              opacity: 0,
+              stagger: 0.16,
+              duration: 1.1,
+              delay: 0.25,
+              ease: 'power3.out'
+            });
+
+            gsap.from('.auth-shell', {
+              x: 24,
+              opacity: 0,
+              duration: 1.15,
+              delay: 0.35,
+              ease: 'power3.out'
+            });
+          }, 320);
+
+        } catch (err) {
+          console.error('Takadori 3D initialization error:', err);
+          loaderStatus.textContent = 'Fallback Mode Active — Rendering Interface';
+          if (curtain) curtain.style.display = 'none';
+          showToast('WebGL hardware acceleration unavailable; displaying fallback backdrop.', 'error');
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
+```
